@@ -21,8 +21,26 @@ const pool = mysql.createPool({
 
 // Test connection on startup (non-blocking)
 pool.getConnection()
-  .then((conn) => {
+  .then(async (conn) => {
     logger.info('✅ MySQL connection pool established successfully');
+    
+    // Automatically run self-migration for password_resets table
+    try {
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS password_resets (
+          id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+          user_id     BIGINT NOT NULL,
+          token       VARCHAR(255) NOT NULL UNIQUE,
+          expires_at  DATETIME NOT NULL,
+          created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT fk_pr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB;
+      `);
+      logger.info('✅ Database auto-migration completed: password_resets table ready.');
+    } catch (migErr) {
+      logger.error('❌ Database auto-migration failed', { error: (migErr as Error).message });
+    }
+    
     conn.release();
   })
   .catch((err) => {

@@ -313,39 +313,34 @@ export default function LoginPage() {
               fontSize: "13px",
               color: "var(--color-text-muted)",
               textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px"
             }}
           >
-            No account?{" "}
-            <Link
-              href="/signup"
-              style={{
-                color: "var(--color-tertiary)",
-                fontWeight: 500,
-              }}
-            >
-              $ register --new-user
-            </Link>
-          </div>
-
-          {/* Seed hint */}
-          <div
-            style={{
-              marginTop: "var(--space-6)",
-              padding: "var(--space-3)",
-              border: "1px dashed var(--color-border-subtle)",
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              color: "var(--color-text-dim)",
-              lineHeight: "20px",
-            }}
-          >
-            <div style={{ color: "var(--color-text-dim)", marginBottom: "2px" }}>
-              // SEED ADMIN CREDENTIALS
+            <div>
+              No account?{" "}
+              <Link
+                href="/signup"
+                style={{
+                  color: "var(--color-tertiary)",
+                  fontWeight: 500,
+                }}
+              >
+                $ register --new-user
+              </Link>
             </div>
-            <div>email &nbsp;: admin@ecosphere.com</div>
-            <div>pass &nbsp;&nbsp;: Admin@123</div>
-            <div style={{ color: "var(--color-secondary)", marginTop: "4px" }}>
-              // Run setup_db.sql first to seed this user
+            <div>
+              Forgot credentials?{" "}
+              <Link
+                href="/forgot-password"
+                style={{
+                  color: "var(--color-secondary)",
+                  fontWeight: 500,
+                }}
+              >
+                $ recover --forgot-password
+              </Link>
             </div>
           </div>
         </div>

@@ -19,7 +19,16 @@ interface AppJWTPayload extends JoseJWTPayload {
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 
 // Routes accessible without authentication
-const PUBLIC_ROUTES = ['/login', '/signup', '/api/auth/login', '/api/auth/signup'];
+const PUBLIC_ROUTES = [
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/api/auth/login',
+  '/api/auth/signup',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password'
+];
 
 // Dashboard routes each role is allowed to access
 const ROLE_ALLOWED_PATHS: Record<UserRole, string[]> = {
