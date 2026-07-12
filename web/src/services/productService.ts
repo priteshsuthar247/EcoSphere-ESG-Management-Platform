@@ -113,7 +113,8 @@ export async function listProducts(options?: {
 }): Promise<Product[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any[] = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('p.status = ?');

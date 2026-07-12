@@ -187,16 +187,16 @@ export default function EmissionFactorsPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>// TOTAL</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"// TOTAL"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.total ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>// ACTIVE</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"// ACTIVE"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
         </div>
         {(["1", "2", "3"] as const).map((s) => (
           <div key={s} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>// SCOPE {s}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"// SCOPE "}{s}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-secondary)" }}>
               {stats?.by_scope.find((x) => x.scope === s)?.count ?? 0}
             </div>
@@ -221,7 +221,7 @@ export default function EmissionFactorsPage() {
           NEW FACTOR
         </button>
         <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-dim)" }}>// SCOPE</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-dim)" }}>{"// SCOPE"}</span>
           {["all", "1", "2", "3"].map((s) => (
             <button
               key={s}
@@ -246,7 +246,7 @@ export default function EmissionFactorsPage() {
             </div>
           ) : items.length === 0 ? (
             <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No emission factors found. Create one to begin carbon accounting.
+              {"// No emission factors found. Create one to begin carbon accounting."}
             </div>
           ) : (
             <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>

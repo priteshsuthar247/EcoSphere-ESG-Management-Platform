@@ -81,7 +81,7 @@ export default async function CEODashboard() {
         {esgMetrics.map((m) => (
           <div key={m.label} className="stat-card">
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>
-              // {m.label}
+              {"// "}{m.label}
             </div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: m.color, lineHeight: 1.2 }}>
               {m.value}
@@ -100,7 +100,7 @@ export default async function CEODashboard() {
         <div className="card-header">DEPARTMENT ESG RANKING</div>
         {topDepts.length === 0 ? (
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-dim)", padding: "var(--space-4)", border: "1px solid var(--color-border-subtle)" }}>
-            // No ESG scores recorded yet. Run the scoring engine to populate rankings.
+            {"// No ESG scores recorded yet. Run the scoring engine to populate rankings."}
           </div>
         ) : (
           <div>

@@ -91,7 +91,7 @@ export default async function EmployeeDashboard() {
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>
-              // {s.label}
+              {"// "}{s.label}
             </div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
               {s.value}
@@ -106,7 +106,7 @@ export default async function EmployeeDashboard() {
         <div className="card-header">RECENT NOTIFICATIONS</div>
         {notifications.length === 0 ? (
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-dim)", padding: "var(--space-4)", border: "1px solid var(--color-border-subtle)" }}>
-            // No notifications. All clear.
+            {"// No notifications. All clear."}
           </div>
         ) : (
           <div>

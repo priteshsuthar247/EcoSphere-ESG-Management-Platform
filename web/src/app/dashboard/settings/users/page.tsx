@@ -276,7 +276,7 @@ export default function UserManagementPage() {
                           borderRadius: "0px"
                         }}
                       >
-                        <option value="null">// NO DEPARTMENT ASSIGNED</option>
+                        <option value="null">{"// NO DEPARTMENT ASSIGNED"}</option>
                         {departments.map((d) => (
                           <option key={d.id} value={d.id}>
                             &gt; {d.name}

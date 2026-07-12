@@ -219,19 +219,19 @@ export default function EnvironmentalGoalsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// TOTAL</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TOTAL"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.total ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// ACTIVE</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// ACTIVE"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// COMPLETED</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// COMPLETED"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.completed ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// AVG PROGRESS</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// AVG PROGRESS"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-secondary)" }}>
             {stats ? `${stats.avg_progress}%` : "–"}
           </div>
@@ -254,7 +254,7 @@ export default function EnvironmentalGoalsPage() {
           NEW GOAL
         </button>
         <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-dim)" }}>// STATUS</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-dim)" }}>{"// STATUS"}</span>
           {["all", "active", "at_risk", "completed", "cancelled"].map((s) => (
             <button
               key={s}
@@ -279,7 +279,7 @@ export default function EnvironmentalGoalsPage() {
             </div>
           ) : items.length === 0 ? (
             <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No environmental goals found. Create a sustainability target to begin.
+              {"// No environmental goals found. Create a sustainability target to begin."}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -316,21 +316,21 @@ export default function EnvironmentalGoalsPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "var(--space-3)", marginBottom: "var(--space-3)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// CURRENT</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>{"// CURRENT"}</div>
                       <div style={{ color: "var(--color-text-primary)" }}>{Number(goal.current_value).toFixed(2)} {goal.unit}</div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// TARGET</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>{"// TARGET"}</div>
                       <div style={{ color: "var(--color-tertiary)" }}>{Number(goal.target_value).toFixed(2)} {goal.unit}</div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// BASELINE</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>{"// BASELINE"}</div>
                       <div style={{ color: "var(--color-text-muted)" }}>
                         {goal.baseline_value === null ? "—" : `${Number(goal.baseline_value).toFixed(2)} ${goal.unit}`}
                       </div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// DEADLINE</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>{"// DEADLINE"}</div>
                       <div style={{ color: "var(--color-secondary)" }}>{String(goal.deadline).slice(0, 10)}</div>
                     </div>
                   </div>
@@ -338,7 +338,7 @@ export default function EnvironmentalGoalsPage() {
                   {/* Progress bar */}
                   <div style={{ marginBottom: "var(--space-3)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: "11px", marginBottom: "4px" }}>
-                      <span style={{ color: "var(--color-text-dim)" }}>// PROGRESS</span>
+                      <span style={{ color: "var(--color-text-dim)" }}>{"// PROGRESS"}</span>
                       <span style={{ color: progressColor(Number(goal.progress_percent)) }}>
                         {Number(goal.progress_percent).toFixed(1)}%
                       </span>
@@ -396,7 +396,7 @@ export default function EnvironmentalGoalsPage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="g-dept">DEPARTMENT</label>
                   <select id="g-dept" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// organisation-wide</option>
+                    <option value="">{"// organisation-wide"}</option>
                     {departments.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}

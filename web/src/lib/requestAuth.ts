@@ -28,3 +28,11 @@ export const ENV_READ_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
 export const ENV_PRODUCT_ROLES: UserRole[] = ['admin', 'ceo'];
 export const ENV_WRITE_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
 export const ENV_ADMIN_WRITE_ROLES: UserRole[] = ['admin', 'ceo'];
+
+/**
+ * Roles allowed to access Social module pages.
+ */
+export const SOCIAL_READ_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head', 'employee'];
+export const SOCIAL_MANAGE_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
+export const SOCIAL_APPROVE_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
+export const SOCIAL_DIVERSITY_ROLES: UserRole[] = ['admin', 'ceo'];
