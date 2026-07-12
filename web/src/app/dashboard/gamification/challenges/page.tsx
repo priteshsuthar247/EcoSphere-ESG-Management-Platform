@@ -3,10 +3,12 @@
 // Challenges panel - TerminalUI design system
 // Admin: full CRUD. Employees/others: view active challenges only.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Challenge {
   id: number;
@@ -210,11 +212,31 @@ export default function ChallengesManagementPage() {
   }
 
   const visible = challenges.filter((c) => isAdmin || c.status === "active" || c.status === "under_review" || c.status === "completed");
-  const filtered = visible.filter(
-    (c) =>
-      matchesStatus(statusFilter, c.status) &&
-      matchesSearch(search, [c.id, c.title, c.category_name, c.difficulty, c.description]),
+  const filtered = useMemo(
+    () =>
+      visible.filter(
+        (c) =>
+          matchesStatus(statusFilter, c.status) &&
+          matchesSearch(search, [c.id, c.title, c.category_name, c.difficulty, c.description]),
+      ),
+    [visible, statusFilter, search],
   );
+
+  const getChallengeSort = useCallback((c: Challenge, key: string) => {
+    switch (key) {
+      case "id": return c.id;
+      case "title": return c.title;
+      case "category": return c.category_name ?? "";
+      case "xp": return c.xp_reward;
+      case "difficulty": return c.difficulty;
+      case "evidence": return c.evidence_required;
+      case "deadline": return c.end_date ?? "";
+      case "status": return c.status;
+      default: return "";
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getChallengeSort, "id");
   const formOpen = isAdmin && (isAdding || editingChallenge !== null);
 
   return (
@@ -280,46 +302,46 @@ export default function ChallengesManagementPage() {
             <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Title</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Category</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Reward (XP)</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Difficulty</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Evidence</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Deadline</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Action</th>
+                  <tr>
+                    <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Title" columnKey="title" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Category" columnKey="category" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Reward (XP)" columnKey="xp" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Difficulty" columnKey="difficulty" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Evidence" columnKey="evidence" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Deadline" columnKey="deadline" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {sorted.length === 0 ? (
                     <tr>
                       <td colSpan={9} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                         No challenges found.
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((c) => (
-                      <tr key={c.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(c.id).padStart(3, "0")}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{c.title}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                    sorted.map((c) => (
+                      <tr key={c.id}>
+                        <td style={{ color: "var(--color-text-dim)" }}>{String(c.id).padStart(3, "0")}</td>
+                        <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{c.title}</td>
+                        <td style={{ color: "var(--color-text-muted)" }}>
                           {c.category_name || "—"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>{c.xp_reward} XP</td>
-                        <td style={{ padding: "10px var(--space-3)" }}>
+                        <td style={{ color: "var(--color-primary)" }}>{c.xp_reward} XP</td>
+                        <td>
                           <span className={`chip ${c.difficulty === "easy" ? "chip-green" : c.difficulty === "medium" ? "chip-cyan" : "chip-amber"}`}>
                             {c.difficulty}
                           </span>
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>
+                        <td style={{ color: "var(--color-text-dim)" }}>
                           {c.evidence_required === 1 ? "Required" : "Optional"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                        <td style={{ color: "var(--color-text-muted)" }}>
                           {c.end_date ? c.end_date.split("T")[0] : "–"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)" }}>
+                        <td>
                           <span className={`chip ${c.status === "active" ? "chip-green" : c.status === "draft" ? "chip-muted" : c.status === "under_review" ? "chip-cyan" : c.status === "completed" ? "chip-cyan" : "chip-red"}`}>
                             {c.status}
                           </span>

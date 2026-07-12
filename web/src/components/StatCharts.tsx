@@ -44,45 +44,49 @@ export function ChartCard({ title, subtitle, children }: CardProps) {
 }
 
 /**
- * Vertical bar chart — full card width, short fixed height.
- * CSS flex (not SVG) so desktop doesn't leave a huge empty card.
+ * Horizontal score bars — ideal for metrics out of 100 (ESG pillars).
+ * Fills the card width with clear labels and values; no empty dead space.
  */
 export function SimpleBarChart({
   data,
   unit = "",
+  maxScale,
 }: {
   data: ChartDatum[];
-  /** retained for API compat; height is controlled by CSS */
   height?: number;
   unit?: string;
+  /** Fixed scale max (e.g. 100 for ESG scores). Defaults to max data value. */
+  maxScale?: number;
 }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
+  const max = maxScale && maxScale > 0 ? maxScale : Math.max(...data.map((d) => d.value), 1);
 
   if (data.length === 0 || data.every((d) => d.value === 0)) {
     return <div className="chart-empty">No data to chart yet</div>;
   }
 
   return (
-    <div className="bar-chart" role="img" aria-label="Bar chart">
+    <div className="score-bars" role="img" aria-label="Bar chart">
       {data.map((d, i) => {
-        const pct = Math.max(4, Math.round((d.value / max) * 100));
+        const pct = Math.min(100, Math.max(0, (d.value / max) * 100));
         const color = d.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length];
-        const label =
-          d.label.length > 12 ? `${d.label.slice(0, 11)}…` : d.label;
+        const isOverall = /overall/i.test(d.label);
         return (
-          <div key={`${d.label}-${i}`} className="bar-chart-col">
-            <div className="bar-chart-value">
-              {formatValue(d.value)}
-              {unit}
-            </div>
-            <div className="bar-chart-track">
+          <div
+            key={`${d.label}-${i}`}
+            className={`score-bar-row${isOverall ? " score-bar-overall" : ""}`}
+          >
+            <div className="score-bar-label">{d.label}</div>
+            <div className="score-bar-track" title={`${d.label}: ${formatValue(d.value)}${unit}`}>
               <div
-                className="bar-chart-fill"
-                style={{ height: `${pct}%`, background: color }}
-                title={`${d.label}: ${formatValue(d.value)}${unit}`}
+                className="score-bar-fill"
+                style={{ width: `${pct}%`, background: color }}
               />
             </div>
-            <div className="bar-chart-label">{label}</div>
+            <div className="score-bar-value">
+              {formatValue(d.value)}
+              {unit}
+              {maxScale === 100 ? <span className="score-bar-unit">/100</span> : null}
+            </div>
           </div>
         );
       })}

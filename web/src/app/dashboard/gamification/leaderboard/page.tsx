@@ -2,8 +2,10 @@
 // src/app/dashboard/gamification/leaderboard/page.tsx
 // Leaderboard Dashboard - TerminalUI design system
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface EmployeeRank {
   id: number;
@@ -57,6 +59,48 @@ export default function LeaderboardPage() {
       setLoading(false);
     }
   }
+
+  const filteredEmployees = employees.filter((e) =>
+    matchesSearch(search, [e.name, e.email, e.department_name]),
+  );
+  const filteredDepartments = departments.filter((d) =>
+    matchesSearch(search, [d.name, d.code]),
+  );
+
+  const getEmployeeSort = useCallback((row: EmployeeRank, key: string): unknown => {
+    switch (key) {
+      case "employee": return row.name;
+      case "department": return row.department_name ?? "";
+      case "points": return row.esg_points_balance;
+      case "total_xp": return row.total_xp;
+      default: return null;
+    }
+  }, []);
+
+  const getDeptSort = useCallback((row: DepartmentRank, key: string): unknown => {
+    switch (key) {
+      case "department": return row.name;
+      case "env": return Number(row.environmental_score);
+      case "soc": return Number(row.social_score);
+      case "gov": return Number(row.governance_score);
+      case "total_score": return Number(row.total_score);
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedEmployees,
+    sortKey: empSortKey,
+    sortDir: empSortDir,
+    toggle: empToggle,
+  } = useTableSort(filteredEmployees, getEmployeeSort, "total_xp", "desc");
+
+  const {
+    sorted: sortedDepartments,
+    sortKey: deptSortKey,
+    sortDir: deptSortDir,
+    toggle: deptToggle,
+  } = useTableSort(filteredDepartments, getDeptSort, "total_score", "desc");
 
   return (
     <div>
@@ -118,26 +162,26 @@ export default function LeaderboardPage() {
             <div>
               <div className="card-header">Individual active standings</div>
               
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", width: "70px" }}>Rank</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Employee</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Department</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ESG points</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Total XP</th>
+                    <tr>
+                      <th className="sortable-th" style={{ textAlign: "left", cursor: "default", width: "70px" }}>Rank</th>
+                      <SortableTh label="Employee" columnKey="employee" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} />
+                      <SortableTh label="Department" columnKey="department" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} />
+                      <SortableTh label="ESG points" columnKey="points" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} align="right" />
+                      <SortableTh label="Total XP" columnKey="total_xp" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} align="right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.filter((e) => matchesSearch(search, [e.name, e.email, e.department_name])).length === 0 ? (
+                    {sortedEmployees.length === 0 ? (
                       <tr>
                         <td colSpan={5} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                           No employee records found.
                         </td>
                       </tr>
                     ) : (
-                      employees.filter((e) => matchesSearch(search, [e.name, e.email, e.department_name])).map((e, index) => {
+                      sortedEmployees.map((e, index) => {
                         const rank = index + 1;
                         let rankText = String(rank);
                         let rowBg = "transparent";
@@ -195,27 +239,27 @@ export default function LeaderboardPage() {
             <div>
               <div className="card-header">Departmental ESG scores standings</div>
               
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", width: "70px" }}>Rank</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Department</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Env score</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Soc score</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Gov score</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Total ESG</th>
+                    <tr>
+                      <th className="sortable-th" style={{ textAlign: "left", cursor: "default", width: "70px" }}>Rank</th>
+                      <SortableTh label="Department" columnKey="department" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} />
+                      <SortableTh label="Env score" columnKey="env" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
+                      <SortableTh label="Soc score" columnKey="soc" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
+                      <SortableTh label="Gov score" columnKey="gov" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
+                      <SortableTh label="Total ESG" columnKey="total_score" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {departments.filter((d) => matchesSearch(search, [d.name, d.code])).length === 0 ? (
+                    {sortedDepartments.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                           No departmental scores calculated yet.
                         </td>
                       </tr>
                     ) : (
-                      departments.filter((d) => matchesSearch(search, [d.name, d.code])).map((d, index) => {
+                      sortedDepartments.map((d, index) => {
                         const rank = index + 1;
                         let rankText = String(rank);
                         let rowBg = "transparent";

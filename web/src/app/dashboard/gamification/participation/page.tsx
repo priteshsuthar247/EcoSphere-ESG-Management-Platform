@@ -2,9 +2,11 @@
 // src/app/dashboard/gamification/participation/page.tsx
 // Challenge Participation approvals - managers only (employees redirected by middleware)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Participation {
   id: number;
@@ -80,6 +82,27 @@ export default function ChallengeParticipationPage() {
     }
   }
 
+  const filtered = participations.filter(
+    (p) =>
+      matchesStatus(statusFilter, p.approval_status) &&
+      matchesSearch(search, [p.id, p.user_name, p.user_email, p.challenge_title]),
+  );
+
+  const getSortValue = useCallback((row: Participation, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "employee": return row.user_name;
+      case "challenge": return row.challenge_title;
+      case "reward": return row.xp_reward;
+      case "progress": return row.progress_percent;
+      case "date": return row.joined_at ?? "";
+      case "status": return row.approval_status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+
   return (
     <div>
       {/* Header */}
@@ -131,29 +154,29 @@ export default function ChallengeParticipationPage() {
           />
           <div className="card-header">Participation verification records</div>
           
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Employee</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Challenge</th>
-                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Reward</th>
-                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Progress</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Submit date</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
-                  <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Actions</th>
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Employee" columnKey="employee" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Challenge" columnKey="challenge" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Reward" columnKey="reward" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                  <SortableTh label="Progress" columnKey="progress" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                  <SortableTh label="Submit date" columnKey="date" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {participations.filter((p) => matchesStatus(statusFilter, p.approval_status) && matchesSearch(search, [p.id, p.user_name, p.user_email, p.challenge_title])).length === 0 ? (
+                {sorted.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                       No participations logged for review.
                     </td>
                   </tr>
                 ) : (
-                  participations.filter((p) => matchesStatus(statusFilter, p.approval_status) && matchesSearch(search, [p.id, p.user_name, p.user_email, p.challenge_title])).map((p) => (
+                  sorted.map((p) => (
                     <tr 
                       key={p.id} 
                       style={{ 

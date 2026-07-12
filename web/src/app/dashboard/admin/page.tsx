@@ -57,54 +57,25 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "var(--color-primary)",
-            marginBottom: 6,
-          }}
-        >
+      <header className="page-header">
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
           Admin
         </div>
-        <h1
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            letterSpacing: "-0.5px",
-            color: "var(--color-text-primary)",
-            marginBottom: 6,
-          }}
-        >
-          Executive overview
-        </h1>
-        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
+        <h1>Executive overview</h1>
+        <p>
           Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
           Full system access.
         </p>
-      </div>
+      </header>
 
-      <div className="stats-grid" style={{ marginBottom: "var(--space-8)" }}>
+      <div className="stats-grid section-gap">
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
+            <div className="stat-label">{s.label}</div>
             <div
+              className="stat-value"
               style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--color-text-dim)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              {s.label}
-            </div>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                letterSpacing: "-0.5px",
                 color: s.color,
-                lineHeight: 1.2,
               }}
             >
               {s.value}
@@ -113,7 +84,7 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      <div style={{ marginBottom: "var(--space-8)" }}>
+      <section className="section-gap">
         <div className="card-header">Quick actions</div>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {actions.map((a) => (
@@ -122,17 +93,11 @@ export default async function AdminDashboard() {
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div>
+      <section>
         <div className="card-header">Module status</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "var(--space-3)",
-          }}
-        >
+        <div className="responsive-grid-2">
           {modules.map((m) => (
             <div
               key={m}
@@ -140,7 +105,7 @@ export default async function AdminDashboard() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "12px 16px",
+                padding: "var(--space-3) var(--space-4)",
                 border: "1px solid var(--color-hairline)",
                 borderRadius: "var(--radius-md)",
                 background: "var(--color-surface)",
@@ -152,7 +117,7 @@ export default async function AdminDashboard() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

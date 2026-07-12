@@ -3,10 +3,12 @@
 // Rewards catalog - TerminalUI design system
 // Admin: catalog CRUD + fulfill redemptions. Employees: browse catalog (own redemptions).
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Reward {
   id: number;
@@ -199,6 +201,25 @@ export default function RewardsManagementPage() {
       matchesSearch(redemptionSearch, [red.id, red.user_name, red.user_email, red.reward_name]),
   );
 
+  const getRedemptionSort = useCallback((row: Redemption, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "recipient": return row.user_name;
+      case "item": return row.reward_name;
+      case "points": return row.points_deducted;
+      case "date": return row.redeemed_at ?? "";
+      case "status": return row.status;
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedRedemptions,
+    sortKey: redSortKey,
+    sortDir: redSortDir,
+    toggle: redToggle,
+  } = useTableSort(filteredRedemptions, getRedemptionSort, "id");
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
@@ -341,28 +362,28 @@ export default function RewardsManagementPage() {
               ]}
             />
             <div className="card-header">Redemption requests queue</div>
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <div className="data-table-wrap">
+              <table className="data-table">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Recipient</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Item</th>
-                    <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Points</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Date</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Actions</th>
+                  <tr>
+                    <SortableTh label="ID" columnKey="id" sortKey={redSortKey} sortDir={redSortDir} onSort={redToggle} />
+                    <SortableTh label="Recipient" columnKey="recipient" sortKey={redSortKey} sortDir={redSortDir} onSort={redToggle} />
+                    <SortableTh label="Item" columnKey="item" sortKey={redSortKey} sortDir={redSortDir} onSort={redToggle} />
+                    <SortableTh label="Points" columnKey="points" sortKey={redSortKey} sortDir={redSortDir} onSort={redToggle} align="right" />
+                    <SortableTh label="Date" columnKey="date" sortKey={redSortKey} sortDir={redSortDir} onSort={redToggle} />
+                    <SortableTh label="Status" columnKey="status" sortKey={redSortKey} sortDir={redSortDir} onSort={redToggle} />
+                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRedemptions.length === 0 ? (
+                  {sortedRedemptions.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                         No redemption requests in queue.
                       </td>
                     </tr>
                   ) : (
-                    filteredRedemptions.map((red) => (
+                    sortedRedemptions.map((red) => (
                       <tr
                         key={red.id}
                         style={{

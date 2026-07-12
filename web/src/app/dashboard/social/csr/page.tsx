@@ -316,7 +316,7 @@ export default function CsrActivitiesPage() {
                       {canManage && (
                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>Edit</button>
                       )}
-                      {!["cancelled", "archived"].includes(item.status) &&
+                      {!["cancelled", "archived", "completed"].includes(item.status) &&
                         !joinedIds.has(item.id) && (
                         <button
                           type="button"

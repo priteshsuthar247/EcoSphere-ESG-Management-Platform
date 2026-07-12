@@ -2,7 +2,9 @@
 // src/app/dashboard/reports/builder/page.tsx
 // Custom Report Builder interface - TerminalUI design system
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Department {
   id: number;
@@ -185,6 +187,25 @@ export default function CustomReportBuilderPage() {
   function handlePrintPDF() {
     window.print();
   }
+
+  const getReportSort = useCallback((row: ReportRow, key: string): unknown => {
+    switch (key) {
+      case "date": return row.date;
+      case "module": return row.module;
+      case "department": return row.department_name ?? "";
+      case "employee": return row.employee_name ?? "";
+      case "metric": return row.metric_name;
+      case "value": return row.metric_value;
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedReportRows,
+    sortKey: reportSortKey,
+    sortDir: reportSortDir,
+    toggle: reportToggle,
+  } = useTableSort(reportRows, getReportSort, "date", "desc");
 
   return (
     <div>
@@ -468,20 +489,20 @@ export default function CustomReportBuilderPage() {
                 <div className="card-header" style={{ marginBottom: 0 }}>COMPILED REPORT SHEET OUTPUT</div>
               </div>
 
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table" style={{ fontFamily: "var(--font-mono)", fontSize: "13px" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", width: "110px" }}>DATE</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", width: "140px" }}>MODULE</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DEPARTMENT</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EMPLOYEE / OWNER</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>METRIC / CSR ACTIVITY</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>RESULT VALUE</th>
+                    <tr>
+                      <SortableTh label="DATE" columnKey="date" sortKey={reportSortKey} sortDir={reportSortDir} onSort={reportToggle} />
+                      <SortableTh label="MODULE" columnKey="module" sortKey={reportSortKey} sortDir={reportSortDir} onSort={reportToggle} />
+                      <SortableTh label="DEPARTMENT" columnKey="department" sortKey={reportSortKey} sortDir={reportSortDir} onSort={reportToggle} />
+                      <SortableTh label="EMPLOYEE / OWNER" columnKey="employee" sortKey={reportSortKey} sortDir={reportSortDir} onSort={reportToggle} />
+                      <SortableTh label="METRIC / CSR ACTIVITY" columnKey="metric" sortKey={reportSortKey} sortDir={reportSortDir} onSort={reportToggle} />
+                      <SortableTh label="RESULT VALUE" columnKey="value" sortKey={reportSortKey} sortDir={reportSortDir} onSort={reportToggle} />
                     </tr>
                   </thead>
                   <tbody>
-                    {reportRows.map((r, i) => (
+                    {sortedReportRows.map((r, i) => (
                       <tr key={i} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{r.date}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>

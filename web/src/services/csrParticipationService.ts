@@ -113,7 +113,8 @@ export async function joinCsrActivity(params: {
   const { userId, activityId } = params;
   const activity = await getCsrActivityById(activityId);
   if (!activity) throw new Error('ACTIVITY_NOT_FOUND');
-  if (['cancelled', 'archived'].includes(activity.status)) {
+  // Completed / cancelled / archived activities are closed for new joiners
+  if (['cancelled', 'archived', 'completed'].includes(activity.status)) {
     throw new Error('ACTIVITY_NOT_JOINABLE');
   }
 

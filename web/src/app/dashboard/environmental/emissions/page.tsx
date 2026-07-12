@@ -2,9 +2,11 @@
 // src/app/dashboard/environmental/emissions/page.tsx
 // Emission Factors master data
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface EmissionFactor {
   id: number;
@@ -158,17 +160,31 @@ export default function EmissionFactorsPage() {
     }
   }
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    background: "var(--color-bg)",
-    border: "1px solid var(--color-border-medium)",
-    color: "var(--color-primary)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "14px",
-    outline: "none",
-    borderRadius: "0px",
-  };
+  const filtered = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          matchesStatus(statusFilter, item.status) &&
+          matchesSearch(search, [item.id, item.name, item.category, item.unit, item.source, item.scope]),
+      ),
+    [items, statusFilter, search],
+  );
+
+  const getSortValue = useCallback((row: EmissionFactor, key: string) => {
+    switch (key) {
+      case "id": return row.id;
+      case "name": return row.name;
+      case "scope": return row.scope ?? "";
+      case "category": return row.category ?? "";
+      case "value": return Number(row.value_kgco2e_per_unit);
+      case "unit": return row.unit;
+      case "source": return row.source ?? "";
+      case "status": return row.status;
+      default: return "";
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
 
   return (
     <div>
@@ -259,36 +275,39 @@ export default function EmissionFactorsPage() {
             No emission factors found. Create one to begin carbon accounting.
           </div>
         ) : (
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  {["ID", "Name", "Scope", "Category", "Value", "Unit", "Source", "Status", "Action"].map((h) => (
-                    <th key={h} style={{ textAlign: h === "Action" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Scope" columnKey="scope" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Category" columnKey="category" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Value" columnKey="value" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Unit" columnKey="unit" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Source" columnKey="source" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {items.filter((item) =>
-                  matchesStatus(statusFilter, item.status) &&
-                  matchesSearch(search, [item.id, item.name, item.category, item.unit, item.source, item.scope])
-                ).map((item) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
-                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
-                    <td style={{ padding: "10px var(--space-3)" }}>
+                {sorted.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
+                    <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
+                    <td>
                       <span className={`chip ${item.scope === "1" ? "chip-red" : item.scope === "2" ? "chip-amber" : "chip-cyan"}`}>
                         {item.scope ? `S${item.scope}` : "—"}
                       </span>
                     </td>
-                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.category || "—"}</td>
-                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>{Number(item.value_kgco2e_per_unit).toFixed(4)}</td>
-                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.unit}</td>
-                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{item.source || "—"}</td>
-                    <td style={{ padding: "10px var(--space-3)" }}>
+                    <td style={{ color: "var(--color-text-muted)" }}>{item.category || "—"}</td>
+                    <td style={{ color: "var(--color-primary)" }}>{Number(item.value_kgco2e_per_unit).toFixed(4)}</td>
+                    <td style={{ color: "var(--color-text-muted)" }}>{item.unit}</td>
+                    <td style={{ color: "var(--color-text-dim)" }}>{item.source || "—"}</td>
+                    <td>
                       <span className={`chip ${item.status === "active" ? "chip-green" : "chip-muted"}`}>{item.status}</span>
                     </td>
-                    <td style={{ padding: "10px var(--space-3)", textAlign: "center", whiteSpace: "nowrap" }}>
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)} style={{ marginRight: "6px" }}>Edit</button>
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleStatus(item)}>
                         {item.status === "active" ? "Disable" : "Enable"}

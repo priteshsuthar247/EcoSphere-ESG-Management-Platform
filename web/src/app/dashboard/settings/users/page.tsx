@@ -2,10 +2,12 @@
 // src/app/dashboard/settings/users/page.tsx
 // User Management interface for administrators
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface UserListEntry {
   id: number;
@@ -128,6 +130,36 @@ export default function UserManagementPage() {
     employee: "EMPLOYEE",
   };
 
+  const filteredUsers = useMemo(
+    () =>
+      users.filter(
+        (u) =>
+          matchesStatus(statusFilter, u.status) &&
+          (roleFilter === "all" || u.role === roleFilter) &&
+          matchesSearch(search, [u.id, u.name, u.email, u.department_name, u.role]),
+      ),
+    [users, statusFilter, roleFilter, search],
+  );
+
+  const getUserSortValue = useCallback((u: UserListEntry, key: string) => {
+    switch (key) {
+      case "id": return u.id;
+      case "name": return u.name;
+      case "email": return u.email;
+      case "role": return u.role;
+      case "department": return u.department_name ?? "";
+      case "status": return u.status;
+      case "xp": return u.total_xp;
+      default: return "";
+    }
+  }, []);
+
+  const { sorted: sortedUsers, sortKey, sortDir, toggle } = useTableSort(
+    filteredUsers,
+    getUserSortValue,
+    "id",
+  );
+
   return (
     <div>
       {/* Header */}
@@ -192,52 +224,43 @@ export default function UserManagementPage() {
         />
         <div className="card-header">User directory</div>
             
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <div className="data-table-wrap">
+              <table className="data-table">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Name</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Email</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Role</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Department</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
-                    <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>XP / Pts</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Action</th>
+                  <tr>
+                    <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Email" columnKey="email" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Role" columnKey="role" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Department" columnKey="department" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="XP / Pts" columnKey="xp" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.filter((u) =>
-                    matchesStatus(statusFilter, u.status) &&
-                    (roleFilter === "all" || u.role === roleFilter) &&
-                    matchesSearch(search, [u.id, u.name, u.email, u.department_name, u.role])
-                  ).map((u) => (
-                    <tr 
-                      key={u.id} 
-                      style={{ 
-                        borderBottom: "1px solid var(--color-border-subtle)", 
-                      }}
-                    >
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(u.id).padStart(3, "0")}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{u.name}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{u.email}</td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
+                  {sortedUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td style={{ color: "var(--color-text-dim)" }}>{String(u.id).padStart(3, "0")}</td>
+                      <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{u.name}</td>
+                      <td style={{ color: "var(--color-text-muted)" }}>{u.email}</td>
+                      <td>
                         <span className={`chip ${u.role === "admin" ? "chip-red" : u.role === "ceo" ? "chip-amber" : u.role === "departmental_head" ? "chip-cyan" : "chip-muted"}`}>
                           {roleLabels[u.role] ?? u.role}
                         </span>
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: u.department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
+                      <td style={{ color: u.department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
                         {u.department_name || "—"}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
+                      <td>
                         <span className={`chip ${u.status === "active" ? "chip-green" : "chip-muted"}`}>
                           {u.status}
                         </span>
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", textAlign: "right", color: "var(--color-text-primary)" }}>
+                      <td style={{ textAlign: "right", color: "var(--color-text-primary)" }}>
                         {u.total_xp} / {u.esg_points_balance}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
+                      <td style={{ textAlign: "center" }}>
                         <button 
                           onClick={() => handleEditClick(u)} 
                           className="btn btn-secondary btn-sm"

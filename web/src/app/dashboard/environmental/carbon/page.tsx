@@ -2,10 +2,12 @@
 // src/app/dashboard/environmental/carbon/page.tsx
 // Carbon Transactions log
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch } from "@/components/TableFilters";
 import { ChartCard, SimpleBarChart } from "@/components/StatCharts";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface CarbonTx {
   id: number;
@@ -162,35 +164,55 @@ export default function CarbonTransactionsPage() {
     }
   }
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    background: "var(--color-bg)",
-    border: "1px solid var(--color-border-medium)",
-    color: "var(--color-primary)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "14px",
-    outline: "none",
-    borderRadius: "0px",
-  };
+  const filteredTx = useMemo(
+    () =>
+      items.filter(
+        (tx) =>
+          (sourceFilter === "all" || tx.source_type === sourceFilter) &&
+          matchesSearch(search, [
+            tx.id,
+            tx.source_type,
+            tx.emission_factor_name,
+            tx.department_name,
+            tx.product_name,
+            tx.source_reference,
+            tx.created_by_name,
+          ]),
+      ),
+    [items, sourceFilter, search],
+  );
+
+  const getTxSort = useCallback((tx: CarbonTx, key: string) => {
+    switch (key) {
+      case "id": return tx.id;
+      case "date": return tx.transaction_date;
+      case "source": return tx.source_type;
+      case "factor": return tx.emission_factor_name ?? "";
+      case "qty": return Number(tx.quantity);
+      case "emissions": return Number(tx.calculated_emissions_kgco2e);
+      case "scope": return tx.scope ?? "";
+      case "dept": return tx.department_name ?? "";
+      case "product": return tx.product_name ?? "";
+      case "by": return tx.created_by_name ?? "";
+      default: return "";
+    }
+  }, []);
+
+  const { sorted: sortedTx, sortKey, sortDir, toggle } = useTableSort(
+    filteredTx,
+    getTxSort,
+    "date",
+    "desc",
+  );
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ENVIRONMENTAL / CARBON-TRANSACTIONS
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          CARBON TRANSACTIONS
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
+      <div className="page-header">
+        <h1>Carbon transactions</h1>
+        <p>
           Log purchase, manufacturing, expense, or fleet activity. When auto emission calculation is enabled in ESG settings,
           emissions are computed from quantity × emission factor (no manual kgCO₂e required).
         </p>
-      </div>
-
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
       </div>
 
       <div className="stats-grid" style={{ marginBottom: "var(--space-6)" }}>
@@ -278,51 +300,55 @@ export default function CarbonTransactionsPage() {
               No carbon transactions logged yet.
             </div>
           ) : (
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+            <div className="data-table-wrap">
+              <table className="data-table">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    {["ID", "Date", "Source", "Factor", "Qty", "Emissions", "Scope", "Dept", "Product", "By"].map((h) => (
-                      <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
+                  <tr>
+                    <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Date" columnKey="date" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Source" columnKey="source" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Factor" columnKey="factor" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Qty" columnKey="qty" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Emissions" columnKey="emissions" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Scope" columnKey="scope" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Dept" columnKey="dept" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Product" columnKey="product" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="By" columnKey="by" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
                   </tr>
                 </thead>
                 <tbody>
-                  {items.filter((tx) =>
-                    (sourceFilter === "all" || tx.source_type === sourceFilter) &&
-                    matchesSearch(search, [tx.id, tx.source_type, tx.emission_factor_name, tx.department_name, tx.product_name, tx.source_reference, tx.created_by_name])
-                  ).map((tx) => (
-                    <tr key={tx.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(tx.id).padStart(3, "0")}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+                  {sortedTx.map((tx) => (
+                    <tr key={tx.id}>
+                      <td style={{ color: "var(--color-text-dim)" }}>{String(tx.id).padStart(3, "0")}</td>
+                      <td style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
                         {String(tx.transaction_date).slice(0, 10)}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
+                      <td>
                         <span className="chip chip-cyan">{tx.source_type}</span>
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                      <td style={{ color: "var(--color-text-muted)" }}>
                         {tx.emission_factor_name || "—"}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>
+                      <td style={{ color: "var(--color-text-primary)" }}>
                         {Number(tx.quantity).toFixed(2)}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)", fontWeight: 500 }}>
+                      <td style={{ color: "var(--color-primary)", fontWeight: 500 }}>
                         {Number(tx.calculated_emissions_kgco2e).toFixed(2)}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
+                      <td>
                         {tx.scope ? (
                           <span className={`chip ${tx.scope === "1" ? "chip-red" : tx.scope === "2" ? "chip-amber" : "chip-cyan"}`}>
                             S{tx.scope}
                           </span>
                         ) : "—"}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                      <td style={{ color: "var(--color-text-muted)" }}>
                         {tx.department_name || "—"}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                      <td style={{ color: "var(--color-text-muted)" }}>
                         {tx.product_name || "—"}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>
+                      <td style={{ color: "var(--color-text-dim)" }}>
                         {tx.created_by_name || "—"}
                       </td>
                     </tr>

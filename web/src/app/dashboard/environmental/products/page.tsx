@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Product {
   id: number;
@@ -210,6 +212,21 @@ export default function ProductEsgProfilesPage() {
       matchesSearch(search, [item.id, item.name, item.sku, item.category]),
   );
 
+  const getSortValue = useCallback((row: Product, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "name": return row.name;
+      case "sku": return row.sku ?? "";
+      case "category": return row.category ?? "";
+      case "footprint": return row.carbon_footprint_kgco2e_per_unit ?? null;
+      case "stages": return row.lifecycle_stage_count;
+      case "status": return row.status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
@@ -281,22 +298,27 @@ export default function ProductEsgProfilesPage() {
             <span className="spinner" />
             <span style={{ marginLeft: "var(--space-3)" }}>Loading products…</span>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
             No products registered. Create a product ESG profile to continue.
           </div>
         ) : (
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  {["ID", "Name", "SKU", "Category", "Footprint", "Stages", "Status", "Action"].map((h) => (
-                    <th key={h} style={{ textAlign: h === "Action" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="SKU" columnKey="sku" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Category" columnKey="category" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Footprint" columnKey="footprint" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Stages" columnKey="stages" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((item) => (
+                {sorted.map((item) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                     <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
                     <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>

@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Audit {
   id: number;
@@ -146,6 +148,28 @@ export default function AuditsPage() {
     return "chip-muted";
   }
 
+  const filtered = items.filter(
+    (a) =>
+      matchesStatus(statusFilter, a.status) &&
+      matchesSearch(search, [a.id, a.title, a.audit_type, a.department_name, a.auditor_name, a.external_auditor]),
+  );
+
+  const getSortValue = useCallback((row: Audit, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "title": return row.title;
+      case "type": return row.audit_type ?? "";
+      case "dept": return row.department_name ?? "";
+      case "auditor": return row.auditor_name || row.external_auditor || "";
+      case "dates": return row.start_date ?? "";
+      case "issues": return row.open_issues;
+      case "status": return row.status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
@@ -218,22 +242,28 @@ export default function AuditsPage() {
             <span className="spinner" />
             <span style={{ marginLeft: "var(--space-3)" }}>Loading audits…</span>
           </div>
-        ) : items.filter((a) => matchesStatus(statusFilter, a.status) && matchesSearch(search, [a.id, a.title, a.audit_type, a.department_name, a.auditor_name, a.external_auditor])).length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
             No audits found.
           </div>
         ) : (
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  {["ID", "Title", "Type", "Dept", "Auditor", "Dates", "Issues", "Status", "Action"].map((h) => (
-                    <th key={h} style={{ textAlign: h === "Action" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Title" columnKey="title" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Type" columnKey="type" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Dept" columnKey="dept" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Auditor" columnKey="auditor" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Dates" columnKey="dates" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Issues" columnKey="issues" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {items.filter((a) => matchesStatus(statusFilter, a.status) && matchesSearch(search, [a.id, a.title, a.audit_type, a.department_name, a.auditor_name, a.external_auditor])).map((a) => (
+                {sorted.map((a) => (
                   <tr key={a.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                     <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(a.id).padStart(3, "0")}</td>
                     <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{a.title}</td>

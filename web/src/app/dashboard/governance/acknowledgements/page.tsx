@@ -3,6 +3,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Ack {
   id: number;
@@ -65,6 +67,55 @@ export default function AcknowledgementsPage() {
     fetchData();
   }, [fetchData]);
 
+  const filteredCoverage = coverage.filter(
+    (c) =>
+      matchesStatus(coverageStatus, c.status) &&
+      matchesSearch(coverageSearch, [c.title, c.version, c.status]),
+  );
+
+  const filteredLog = items.filter((a) =>
+    matchesSearch(logSearch, [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address]),
+  );
+
+  const getCoverageSort = useCallback((row: Coverage, key: string): unknown => {
+    switch (key) {
+      case "policy": return row.title;
+      case "version": return row.version;
+      case "status": return row.status;
+      case "acked": return row.acknowledged;
+      case "active_users": return row.active_users;
+      case "coverage": return row.coverage_percent;
+      default: return null;
+    }
+  }, []);
+
+  const getLogSort = useCallback((row: Ack, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "user": return row.user_name;
+      case "dept": return row.user_department_name ?? "";
+      case "policy": return row.policy_title;
+      case "version": return row.policy_version || row.policy_version_current || "";
+      case "acked_at": return row.acknowledged_at ?? "";
+      case "ip": return row.ip_address ?? "";
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedCoverage,
+    sortKey: covSortKey,
+    sortDir: covSortDir,
+    toggle: covToggle,
+  } = useTableSort(filteredCoverage, getCoverageSort, "policy");
+
+  const {
+    sorted: sortedLog,
+    sortKey: logSortKey,
+    sortDir: logSortDir,
+    toggle: logToggle,
+  } = useTableSort(filteredLog, getLogSort, "id");
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
@@ -122,22 +173,25 @@ export default function AcknowledgementsPage() {
               ]}
             />
             <div className="card-header">Coverage matrix</div>
-            {coverage.filter((c) => matchesStatus(coverageStatus, c.status) && matchesSearch(coverageSearch, [c.title, c.version, c.status])).length === 0 ? (
+            {sortedCoverage.length === 0 ? (
               <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
                 No policies requiring acknowledgement.
               </div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      {["Policy", "Version", "Status", "Acked", "Active users", "Coverage"].map((h) => (
-                        <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{h}</th>
-                      ))}
+                    <tr>
+                      <SortableTh label="Policy" columnKey="policy" sortKey={covSortKey} sortDir={covSortDir} onSort={covToggle} />
+                      <SortableTh label="Version" columnKey="version" sortKey={covSortKey} sortDir={covSortDir} onSort={covToggle} />
+                      <SortableTh label="Status" columnKey="status" sortKey={covSortKey} sortDir={covSortDir} onSort={covToggle} />
+                      <SortableTh label="Acked" columnKey="acked" sortKey={covSortKey} sortDir={covSortDir} onSort={covToggle} />
+                      <SortableTh label="Active users" columnKey="active_users" sortKey={covSortKey} sortDir={covSortDir} onSort={covToggle} />
+                      <SortableTh label="Coverage" columnKey="coverage" sortKey={covSortKey} sortDir={covSortDir} onSort={covToggle} />
                     </tr>
                   </thead>
                   <tbody>
-                    {coverage.filter((c) => matchesStatus(coverageStatus, c.status) && matchesSearch(coverageSearch, [c.title, c.version, c.status])).map((c) => (
+                    {sortedCoverage.map((c) => (
                       <tr key={c.policy_id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{c.title}</td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>v{c.version}</td>
@@ -169,22 +223,26 @@ export default function AcknowledgementsPage() {
               searchPlaceholder="Search acknowledgements by user, policy, dept…"
             />
             <div className="card-header">Acknowledgement log</div>
-            {items.filter((a) => matchesSearch(logSearch, [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address])).length === 0 ? (
+            {sortedLog.length === 0 ? (
               <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
                 No acknowledgements recorded yet.
               </div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      {["ID", "User", "Dept", "Policy", "Version", "Acked at", "IP"].map((h) => (
-                        <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
+                    <tr>
+                      <SortableTh label="ID" columnKey="id" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
+                      <SortableTh label="User" columnKey="user" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
+                      <SortableTh label="Dept" columnKey="dept" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
+                      <SortableTh label="Policy" columnKey="policy" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
+                      <SortableTh label="Version" columnKey="version" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
+                      <SortableTh label="Acked at" columnKey="acked_at" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
+                      <SortableTh label="IP" columnKey="ip" sortKey={logSortKey} sortDir={logSortDir} onSort={logToggle} />
                     </tr>
                   </thead>
                   <tbody>
-                    {items.filter((a) => matchesSearch(logSearch, [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address])).map((a) => (
+                    {sortedLog.map((a) => (
                       <tr key={a.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(a.id).padStart(3, "0")}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>

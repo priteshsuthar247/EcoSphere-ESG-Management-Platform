@@ -2,9 +2,11 @@
 // src/app/dashboard/settings/departments/page.tsx
 // Department Management interface for administrators - TerminalUI design system
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Department {
   id: number;
@@ -161,6 +163,21 @@ export default function DepartmentsManagementPage() {
       matchesStatus(statusFilter, d.status) &&
       matchesSearch(search, [d.id, d.name, d.code, d.head_user_name, d.parent_department_name, d.location]),
   );
+
+  const getSortValue = useCallback((row: Department, key: string): unknown => {
+    switch (key) {
+      case "code": return row.code;
+      case "name": return row.name;
+      case "head": return row.head_user_name ?? "";
+      case "parent": return row.parent_department_name ?? "";
+      case "location": return row.location ?? "";
+      case "employees": return row.employee_count;
+      case "status": return row.status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "name");
   const formOpen = isAdding || editingDept !== null;
 
   return (
@@ -218,29 +235,29 @@ export default function DepartmentsManagementPage() {
 
           <div>
             <div className="card-header">Active directory</div>
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <div className="data-table-wrap">
+              <table className="data-table">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Code</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Name</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Head</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Parent</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Location</th>
-                    <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Employees</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Action</th>
+                  <tr>
+                    <SortableTh label="Code" columnKey="code" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Head" columnKey="head" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Parent" columnKey="parent" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Location" columnKey="location" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Employees" columnKey="employees" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                    <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {sorted.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                         No departments found.
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((d) => (
+                    sorted.map((d) => (
                       <tr key={d.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-secondary)", fontWeight: 700 }}>{d.code}</td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{d.name}</td>

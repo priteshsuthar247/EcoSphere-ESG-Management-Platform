@@ -50,47 +50,45 @@ export default async function DeptHeadDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>Department head</div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--color-text-primary)", marginBottom: 6 }}>
-          Department control
-        </h1>
-        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
+      <header className="page-header">
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
+          Department head
+        </div>
+        <h1>Department control</h1>
+        <p>
           Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
           {stats?.dept_name && (
             <> Department: <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{stats.dept_name}</span></>
           )}
         </p>
-      </div>
+      </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <div className="stats-grid section-gap">
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
-              {s.label}
-            </div>
-            <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.5px", color: s.color, lineHeight: 1.2 }}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value" style={{ color: s.color }}>
               {s.value}
             </div>
           </div>
         ))}
       </div>
 
-      <div>
+      <section>
         <div className="card-header">Quick actions</div>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
             { label: "Review CSR Participations", href: "/dashboard/social/participation" },
-            { label: "View Environmental Goals",  href: "/dashboard/environmental/goals" },
-            { label: "Log Carbon Data",            href: "/dashboard/environmental/carbon" },
-            { label: "View Compliance Issues",     href: "/dashboard/governance/compliance" },
+            { label: "View Environmental Goals", href: "/dashboard/environmental/goals" },
+            { label: "Log Carbon Data", href: "/dashboard/environmental/carbon" },
+            { label: "View Compliance Issues", href: "/dashboard/governance/compliance" },
           ].map((a) => (
             <a key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
             </a>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

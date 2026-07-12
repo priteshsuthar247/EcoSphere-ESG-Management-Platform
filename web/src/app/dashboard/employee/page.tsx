@@ -70,31 +70,33 @@ export default async function EmployeeDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>Employee</div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--color-text-primary)", marginBottom: 6 }}>
-          Your workspace
-        </h1>
-        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
+      <header className="page-header">
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
+          Employee
+        </div>
+        <h1>Your workspace</h1>
+        <p>
           Welcome back, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>. Your ESG activity summary.
         </p>
-      </div>
+      </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <div className="stats-grid section-gap">
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
-              {s.label}
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: s.color, lineHeight: 1.2 }}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value" style={{ color: s.color }}>
               {s.value}
-              {s.suffix && <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4 }}>{s.suffix}</span>}
+              {s.suffix && (
+                <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4, fontWeight: 500 }}>
+                  {s.suffix}
+                </span>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ marginBottom: "var(--space-8)" }}>
+      <section className="section-gap">
         <div className="card-header">Recent notifications</div>
         {notifications.length === 0 ? (
           <div className="card" style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
@@ -103,19 +105,34 @@ export default async function EmployeeDashboard() {
         ) : (
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             {notifications.map((n, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 16px", borderBottom: "1px solid var(--color-hairline)", fontSize: 14, background: n.is_read ? "transparent" : "rgba(0,117,222,0.04)" }}>
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  padding: "var(--space-3) var(--space-4)",
+                  borderBottom: "1px solid var(--color-hairline)",
+                  fontSize: 14,
+                  background: n.is_read ? "transparent" : "rgba(0,117,222,0.04)",
+                }}
+              >
                 <div>
                   <div style={{ color: n.is_read ? "var(--color-text-muted)" : "var(--color-text-primary)", fontWeight: 600, marginBottom: 2 }}>
                     {n.title}
                   </div>
                   <div style={{ color: "var(--color-text-dim)", fontSize: 13 }}>{n.message}</div>
                 </div>
-                {!n.is_read && <span className="chip chip-cyan" style={{ flexShrink: 0, marginLeft: "var(--space-4)" }}>New</span>}
+                {!n.is_read && (
+                  <span className="chip chip-cyan" style={{ flexShrink: 0, marginLeft: "var(--space-4)" }}>
+                    New
+                  </span>
+                )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       <div>
         <div className="card-header">Quick actions</div>

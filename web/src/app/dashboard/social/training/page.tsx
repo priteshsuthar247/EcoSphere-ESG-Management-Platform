@@ -1,9 +1,11 @@
 "use client";
 // Training completion tracker
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Training {
   id: number;
@@ -90,17 +92,34 @@ export default function TrainingPage() {
     }
   }
 
-  const filtered = items.filter((t) =>
-    matchesSearch(search, [t.id, t.user_name, t.training_name, t.category, t.department_name]),
+  const filtered = useMemo(
+    () =>
+      items.filter((t) =>
+        matchesSearch(search, [t.id, t.user_name, t.training_name, t.category, t.department_name]),
+      ),
+    [items, search],
   );
+
+  const getTrainSort = useCallback((t: Training, key: string) => {
+    switch (key) {
+      case "id": return t.id;
+      case "employee": return t.user_name;
+      case "department": return t.department_name ?? "";
+      case "training": return t.training_name;
+      case "category": return t.category ?? "";
+      case "date": return t.completion_date;
+      case "hours": return t.hours ?? 0;
+      default: return "";
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getTrainSort, "date", "desc");
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--color-primary)", marginBottom: 4 }}>
-          Training completion
-        </h1>
-        <p style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+      <div className="page-header">
+        <h1>Training completion</h1>
+        <p>
           Track ESG and compliance training hours and certificates for the workforce.
         </p>
       </div>
@@ -156,32 +175,35 @@ export default function TrainingPage() {
           No training records yet.
         </div>
       ) : (
-        <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div className="data-table-wrap">
+          <table className="data-table">
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                {["ID", "Employee", "Department", "Training", "Category", "Date", "Hours", "Certificate"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>
-                    {h}
-                  </th>
-                ))}
+              <tr>
+                <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <SortableTh label="Employee" columnKey="employee" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <SortableTh label="Department" columnKey="department" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <SortableTh label="Training" columnKey="training" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <SortableTh label="Category" columnKey="category" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <SortableTh label="Date" columnKey="date" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <SortableTh label="Hours" columnKey="hours" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                <th className="sortable-th" style={{ cursor: "default" }}>Certificate</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t) => (
-                <tr key={t.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-                  <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>
+              {sorted.map((t) => (
+                <tr key={t.id}>
+                  <td style={{ color: "var(--color-text-dim)" }}>
                     {String(t.id).padStart(3, "0")}
                   </td>
-                  <td style={{ padding: "10px var(--space-3)" }}>{t.user_name}</td>
-                  <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                  <td>{t.user_name}</td>
+                  <td style={{ color: "var(--color-text-muted)" }}>
                     {t.department_name || "—"}
                   </td>
-                  <td style={{ padding: "10px var(--space-3)", fontWeight: 500 }}>{t.training_name}</td>
-                  <td style={{ padding: "10px var(--space-3)" }}>{t.category || "—"}</td>
-                  <td style={{ padding: "10px var(--space-3)" }}>{String(t.completion_date).slice(0, 10)}</td>
-                  <td style={{ padding: "10px var(--space-3)" }}>{t.hours ?? "—"}</td>
-                  <td style={{ padding: "10px var(--space-3)" }}>
+                  <td style={{ fontWeight: 500 }}>{t.training_name}</td>
+                  <td>{t.category || "—"}</td>
+                  <td>{String(t.completion_date).slice(0, 10)}</td>
+                  <td>{t.hours ?? "—"}</td>
+                  <td>
                     {t.certificate_url ? (
                       <a href={t.certificate_url} target="_blank" rel="noreferrer">
                         Link

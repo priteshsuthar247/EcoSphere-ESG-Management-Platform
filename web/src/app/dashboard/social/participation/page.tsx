@@ -2,9 +2,11 @@
 // src/app/dashboard/social/participation/page.tsx
 // Employee CSR Participation
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
 import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Participation {
   id: number;
@@ -193,6 +195,24 @@ export default function EmployeeParticipationPage() {
     return !items.some((p) => p.user_id === viewerId && p.csr_activity_id === a.id);
   });
 
+  const filtered = items.filter((p) =>
+    matchesSearch(search, [p.id, p.user_name, p.user_email, p.activity_title, p.user_department_name, p.approval_status]),
+  );
+
+  const getSortValue = useCallback((row: Participation, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "employee": return row.user_name;
+      case "activity": return row.activity_title;
+      case "status": return row.approval_status;
+      case "proof": return row.proof_url ?? (row.evidence_required ? "required" : "");
+      case "pts": return row.points_earned;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
@@ -282,19 +302,21 @@ export default function EmployeeParticipationPage() {
               No participation records found.
             </div>
           ) : (
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+            <div className="data-table-wrap">
+              <table className="data-table" style={{ fontFamily: "var(--font-mono)", fontSize: "12px" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    {["ID", "EMPLOYEE", "ACTIVITY", "STATUS", "PROOF", "PTS", "ACTION"].map((h) => (
-                      <th key={h} style={{ textAlign: h === "ACTION" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
+                  <tr>
+                    <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="EMPLOYEE" columnKey="employee" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="ACTIVITY" columnKey="activity" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="STATUS" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="PROOF" columnKey="proof" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="PTS" columnKey="pts" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.filter((p) =>
-                    matchesSearch(search, [p.id, p.user_name, p.user_email, p.activity_title, p.user_department_name, p.approval_status])
-                  ).map((p) => (
+                  {sorted.map((p) => (
                     <tr key={p.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                       <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(p.id).padStart(3, "0")}</td>
                       <td style={{ padding: "10px var(--space-3)" }}>

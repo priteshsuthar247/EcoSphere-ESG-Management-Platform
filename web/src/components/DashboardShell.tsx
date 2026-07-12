@@ -263,7 +263,6 @@ export default function DashboardShell({
             <span className="topbar-workspace">Workspace</span>
           </div>
           <div className="topbar-right">
-            <span className="chip chip-cyan">{roleLabel}</span>
             <span className="topbar-username">{userName}</span>
           </div>
         </header>

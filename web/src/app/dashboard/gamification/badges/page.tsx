@@ -3,9 +3,11 @@
 // Badges Dashboard - TerminalUI design system
 // Admin: re-evaluate unlocks. Employees: view catalog + awards.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
 import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Badge {
   id: number;
@@ -131,6 +133,27 @@ export default function BadgesDashboardPage() {
     (a, b) => pointsRequired(a.unlock_rule) - pointsRequired(b.unlock_rule),
   );
 
+  const filteredAwards = awarded.filter((a) =>
+    matchesSearch(awardSearch, [a.user_name, a.user_email, a.badge_name, a.awarded_reason]),
+  );
+
+  const getAwardSort = useCallback((row: AwardedBadge, key: string): unknown => {
+    switch (key) {
+      case "recipient": return row.user_name;
+      case "badge": return row.badge_name;
+      case "date": return row.awarded_at ?? "";
+      case "comment": return row.awarded_reason ?? "";
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedAwards,
+    sortKey: awardSortKey,
+    sortDir: awardSortDir,
+    toggle: awardToggle,
+  } = useTableSort(filteredAwards, getAwardSort, "date", "desc");
+
   return (
     <div>
       {/* Header */}
@@ -249,25 +272,25 @@ export default function BadgesDashboardPage() {
           />
           <div className="card-header">Unlocked achievements ledger</div>
           
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Recipient</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Badge unlocked</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Date earned</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Verification comment</th>
+                <tr>
+                  <SortableTh label="Recipient" columnKey="recipient" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
+                  <SortableTh label="Badge unlocked" columnKey="badge" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
+                  <SortableTh label="Date earned" columnKey="date" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
+                  <SortableTh label="Verification comment" columnKey="comment" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
                 </tr>
               </thead>
               <tbody>
-                {awarded.filter((a) => matchesSearch(awardSearch, [a.user_name, a.user_email, a.badge_name, a.awarded_reason])).length === 0 ? (
+                {sortedAwards.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                       No badges awarded yet
                     </td>
                   </tr>
                 ) : (
-                  awarded.filter((a) => matchesSearch(awardSearch, [a.user_name, a.user_email, a.badge_name, a.awarded_reason])).map((a) => (
+                  sortedAwards.map((a) => (
                     <tr key={a.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                       <td style={{ padding: "10px var(--space-3)" }}>
                         <div style={{ color: "var(--color-text-primary)" }}>{a.user_name}</div>

@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useState } from "react";
 import TableFilters, { matchesSearch } from "@/components/TableFilters";
 import { ChartCard, SimpleDonutChart } from "@/components/StatCharts";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface DiversityData {
   totals: {
@@ -63,6 +65,28 @@ export default function DiversityDashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  type MatrixRow = DiversityData["gender_by_department"][number];
+
+  const filteredMatrix = (data?.gender_by_department ?? []).filter((row) =>
+    matchesSearch(matrixSearch, [row.department_name, row.gender, row.count]),
+  );
+
+  const getMatrixSort = useCallback((row: MatrixRow, key: string): unknown => {
+    switch (key) {
+      case "department": return row.department_name;
+      case "gender": return row.gender;
+      case "count": return row.count;
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedMatrix,
+    sortKey: matrixSortKey,
+    sortDir: matrixSortDir,
+    toggle: matrixToggle,
+  } = useTableSort(filteredMatrix, getMatrixSort, "department");
 
   function BarList({
     rows,
@@ -202,22 +226,22 @@ export default function DiversityDashboardPage() {
               searchPlaceholder="Search department or gender…"
             />
             <div className="card-header">Gender × department matrix</div>
-            {data.gender_by_department.filter((row) => matchesSearch(matrixSearch, [row.department_name, row.gender, row.count])).length === 0 ? (
+            {sortedMatrix.length === 0 ? (
               <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
                 No matrix data available.
               </div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      {["Department", "Gender", "Count"].map((h) => (
-                        <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{h}</th>
-                      ))}
+                    <tr>
+                      <SortableTh label="Department" columnKey="department" sortKey={matrixSortKey} sortDir={matrixSortDir} onSort={matrixToggle} />
+                      <SortableTh label="Gender" columnKey="gender" sortKey={matrixSortKey} sortDir={matrixSortDir} onSort={matrixToggle} />
+                      <SortableTh label="Count" columnKey="count" sortKey={matrixSortKey} sortDir={matrixSortDir} onSort={matrixToggle} />
                     </tr>
                   </thead>
                   <tbody>
-                    {data.gender_by_department.filter((row) => matchesSearch(matrixSearch, [row.department_name, row.gender, row.count])).map((row, i) => (
+                    {sortedMatrix.map((row, i) => (
                       <tr key={`${row.department_name}-${row.gender}-${i}`} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{row.department_name}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>
