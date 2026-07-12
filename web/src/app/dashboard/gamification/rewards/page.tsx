@@ -1,8 +1,10 @@
 "use client";
 // src/app/dashboard/gamification/rewards/page.tsx
-// Rewards Management dashboard - TerminalUI design system
+// Rewards catalog - TerminalUI design system
+// Admin: catalog CRUD + fulfill redemptions. Employees: browse catalog (own redemptions).
 
 import { useState, useEffect } from "react";
+import { useSessionRole } from "@/components/useSessionRole";
 
 interface Reward {
   id: number;
@@ -31,13 +33,14 @@ interface Redemption {
 }
 
 export default function RewardsManagementPage() {
+  const { isAdmin } = useSessionRole();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Catalog Add Drawer
+  // Catalog Add Drawer (admin only)
   const [isAdding, setIsAdding] = useState(false);
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -144,13 +147,15 @@ export default function RewardsManagementPage() {
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / GAMIFICATION / REWARDS
+          {isAdmin ? "# ADMIN / GAMIFICATION / REWARDS" : "# GAMIFICATION / REWARDS"}
         </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           INCENTIVE CATALOG
         </h1>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Fulfill company stock exchange redemptions, manage items availability, and reward active profiles.
+          {isAdmin
+            ? "Fulfill company stock exchange redemptions, manage items availability, and reward active profiles."
+            : "Browse redeemable rewards and track your redemption requests."}
         </p>
       </div>
 
@@ -179,7 +184,7 @@ export default function RewardsManagementPage() {
           </span>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: isAdding ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isAdmin && isAdding ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
           
           {/* ── CATALOG AND REDEMPTIONS VIEW ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)" }}>
@@ -188,7 +193,7 @@ export default function RewardsManagementPage() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
                 <div className="card-header" style={{ marginBottom: 0 }}>ACTIVE REWARDS CATALOG</div>
-                {!isAdding && (
+                {isAdmin && !isAdding && (
                   <button onClick={() => setIsAdding(true)} className="btn btn-primary btn-sm btn-cli">
                     NEW REWARD ITEM
                   </button>
@@ -293,7 +298,9 @@ export default function RewardsManagementPage() {
                             </span>
                           </td>
                           <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                            {red.status === "pending" ? (
+                            {!isAdmin ? (
+                              <span style={{ color: "var(--color-text-dim)", fontSize: "11px" }}>—</span>
+                            ) : red.status === "pending" ? (
                               <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "center" }}>
                                 <button
                                   onClick={() => handleRedemptionAction(red.id, "fulfilled", "Authorized Stock Share payout.")}
@@ -326,8 +333,8 @@ export default function RewardsManagementPage() {
 
           </div>
 
-          {/* ── ADD REWARD ITEM DRAWER ── */}
-          {isAdding && (
+          {/* ── ADD REWARD ITEM DRAWER (admin only) ── */}
+          {isAdmin && isAdding && (
             <div className="card-elevated" style={{ height: "fit-content" }}>
               <div className="card-header">ADD REWARD ITEM</div>
 

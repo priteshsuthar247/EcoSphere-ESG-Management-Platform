@@ -1,8 +1,9 @@
 "use client";
 // src/app/dashboard/gamification/participation/page.tsx
-// Challenge Participation dashboard - TerminalUI design system
+// Challenge Participation approvals - managers only (employees redirected by middleware)
 
 import { useState, useEffect } from "react";
+import { useSessionRole } from "@/components/useSessionRole";
 
 interface Participation {
   id: number;
@@ -20,6 +21,7 @@ interface Participation {
 }
 
 export default function ChallengeParticipationPage() {
+  const { isManager } = useSessionRole();
   const [participations, setParticipations] = useState<Participation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -168,7 +170,9 @@ export default function ChallengeParticipationPage() {
                         </span>
                       </td>
                       <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                        {p.approval_status === "pending" ? (
+                        {!isManager ? (
+                          <span style={{ fontSize: "11px", color: "var(--color-text-dim)" }}>—</span>
+                        ) : p.approval_status === "pending" ? (
                           <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "center" }}>
                             <button
                               onClick={() => handleReview(p.id, "approved")}

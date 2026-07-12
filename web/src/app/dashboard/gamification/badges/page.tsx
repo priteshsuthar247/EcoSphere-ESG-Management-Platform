@@ -1,8 +1,10 @@
 "use client";
 // src/app/dashboard/gamification/badges/page.tsx
 // Badges Dashboard - TerminalUI design system
+// Admin: re-evaluate unlocks. Employees: view catalog + awards.
 
 import { useState, useEffect } from "react";
+import { useSessionRole } from "@/components/useSessionRole";
 
 interface Badge {
   id: number;
@@ -27,6 +29,7 @@ interface AwardedBadge {
 }
 
 export default function BadgesDashboardPage() {
+  const { isAdmin } = useSessionRole();
   const [badges, setBadges] = useState<Badge[]>([]);
   const [awarded, setAwarded] = useState<AwardedBadge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,21 +89,52 @@ export default function BadgesDashboardPage() {
     "Silver Badge": "#C0C0C0",
     "Gold Badge": "#FFD700",
     "Platinum Badge": "#E5E4E2",
-    "Diamond Badge": "#B9F2FF"
+    "Diamond Badge": "#B9F2FF",
   };
+
+  const badgeIcons: Record<string, string> = {
+    "Bronze Badge": "🥉",
+    "Silver Badge": "🥈",
+    "Gold Badge": "🥇",
+    "Platinum Badge": "💠",
+    "Diamond Badge": "💎",
+  };
+
+  function pointsRequired(rule: Badge["unlock_rule"] | string | null | undefined): number {
+    if (!rule) return 0;
+    const parsed =
+      typeof rule === "string"
+        ? (() => {
+            try {
+              return JSON.parse(rule);
+            } catch {
+              return {};
+            }
+          })()
+        : rule;
+    return Number(parsed?.points_required) || 0;
+  }
+
+  // Always display lowest → highest: Bronze (1k) … Diamond (12k)
+  const orderedBadges = [...badges].sort(
+    (a, b) => pointsRequired(a.unlock_rule) - pointsRequired(b.unlock_rule),
+  );
 
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / GAMIFICATION / BADGES
+          {isAdmin ? "# ADMIN / GAMIFICATION / BADGES" : "# GAMIFICATION / BADGES"}
         </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           ACHIEVEMENT BADGES
         </h1>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Configure point unlock thresholds and evaluate badge awards for active employees.
+          Tier ladder (lowest → highest): Bronze → Silver → Gold → Platinum → Diamond.
+          {isAdmin
+            ? " Re-evaluate unlocks from employee ESG points balance."
+            : " Earn more ESG points to climb the ladder."}
         </p>
       </div>
 
@@ -132,29 +166,65 @@ export default function BadgesDashboardPage() {
         <div>
           {/* ── VISUAL GALLERY GRID ── */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-4)" }}>
-            <div className="card-header" style={{ marginBottom: 0 }}>BADGE SPECIFICATIONS</div>
-            <button 
-              onClick={handleReevaluate} 
-              disabled={evaluating}
-              className={`btn btn-secondary btn-sm btn-cli${evaluating ? " btn-loading" : ""}`}
-            >
-              RE-EVALUATE BADGES
-            </button>
+            <div className="card-header" style={{ marginBottom: 0 }}>
+              BADGE TIER LADDER (LOW → HIGH)
+            </div>
+            {isAdmin && (
+              <button 
+                onClick={handleReevaluate} 
+                disabled={evaluating}
+                className={`btn btn-secondary btn-sm btn-cli${evaluating ? " btn-loading" : ""}`}
+              >
+                RE-EVALUATE BADGES
+              </button>
+            )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
-            {badges.map((b) => {
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+            {orderedBadges.map((b, index) => {
+              const pts = pointsRequired(b.unlock_rule);
               const borderCol = badgeColors[b.name] || "var(--color-border-medium)";
+              const icon = badgeIcons[b.name] || "🏆";
+              const tier = index + 1;
+              const isLowest = index === 0;
+              const isHighest = index === orderedBadges.length - 1;
               return (
-                <div key={b.id} className="card-elevated" style={{ borderTop: `4px solid ${borderCol}`, textAlign: "center" }}>
-                  <div style={{ fontSize: "28px", color: borderCol, marginBottom: "var(--space-2)" }}>
-                    🏆
+                <div
+                  key={b.id}
+                  className="card-elevated"
+                  style={{
+                    borderTop: `4px solid ${borderCol}`,
+                    textAlign: "center",
+                    position: "relative",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "10px",
+                      color: "var(--color-text-dim)",
+                      letterSpacing: "0.08em",
+                      marginBottom: "var(--space-2)",
+                    }}
+                  >
+                    TIER {tier}
+                    {isLowest ? " · LOWEST" : ""}
+                    {isHighest ? " · HIGHEST" : ""}
                   </div>
-                  <h3 style={{ fontSize: "16px", color: "var(--color-text-primary)", marginBottom: "4px" }}>
-                    {b.name}
+                  <div style={{ fontSize: "32px", marginBottom: "var(--space-2)" }}>{icon}</div>
+                  <h3 style={{ fontSize: "16px", color: borderCol, marginBottom: "4px", fontWeight: 700 }}>
+                    {b.name.replace(" Badge", "")}
                   </h3>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-primary)", fontWeight: "bold", marginBottom: "var(--space-2)" }}>
-                    &gt;= {b.unlock_rule?.points_required || 0} PTS
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "12px",
+                      color: "var(--color-primary)",
+                      fontWeight: "bold",
+                      marginBottom: "var(--space-2)",
+                    }}
+                  >
+                    ≥ {pts.toLocaleString()} PTS
                   </div>
                   <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
                     {b.description}

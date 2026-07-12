@@ -24,7 +24,8 @@ function isAdmin(request: NextRequest): boolean {
   const token = request.cookies.get('auth-token')?.value;
   if (!token) return false;
   const payload = verifyToken(token);
-  return payload?.role === 'admin';
+  // Admin and CEO share full platform privileges
+  return payload?.role === 'admin' || payload?.role === 'ceo';
 }
 
 export async function GET(request: NextRequest) {

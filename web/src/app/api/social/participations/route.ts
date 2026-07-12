@@ -240,7 +240,9 @@ export async function PUT(request: NextRequest) {
         reviewerId: user!.id,
         decision,
         rejection_reason: typeof rejection_reason === 'string' ? rejection_reason : null,
-        forceWithoutProof: force_without_proof === true && user!.role === 'admin',
+        forceWithoutProof:
+          force_without_proof === true &&
+          (user!.role === 'admin' || user!.role === 'ceo'),
       });
       logger.info('CSR participation reviewed', {
         participationId,

@@ -1,8 +1,10 @@
 "use client";
 // src/app/dashboard/gamification/challenges/page.tsx
-// Challenges Management panel - TerminalUI design system
+// Challenges panel - TerminalUI design system
+// Admin: full CRUD. Employees/others: view active challenges only.
 
 import { useState, useEffect } from "react";
+import { useSessionRole } from "@/components/useSessionRole";
 
 interface Challenge {
   id: number;
@@ -26,13 +28,14 @@ interface Category {
 }
 
 export default function ChallengesManagementPage() {
+  const { isAdmin, loading: roleLoading } = useSessionRole();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Drawer status
+  // Drawer status (admin only)
   const [isAdding, setIsAdding] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
 
@@ -50,32 +53,36 @@ export default function ChallengesManagementPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!roleLoading) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleLoading, isAdmin]);
 
   async function fetchData() {
     setLoading(true);
     setError("");
     try {
-      const [challengesRes, categoriesRes] = await Promise.all([
-        fetch("/api/gamification/challenges"),
-        fetch("/api/admin/categories")
-      ]);
-
+      const challengesRes = await fetch("/api/gamification/challenges");
       const challengesJson = await challengesRes.json();
-      const categoriesJson = await categoriesRes.json();
 
       if (!challengesRes.ok || !challengesJson.success) {
         throw new Error(challengesJson.error || "Failed to load challenges");
       }
-      if (!categoriesRes.ok || !categoriesJson.success) {
-        throw new Error(categoriesJson.error || "Failed to load categories");
-      }
 
       setChallenges(challengesJson.data);
-      // Filter categories to only show challenge-related classification categories
-      const challengeCats = categoriesJson.data.filter((c: Category) => c.type === "challenge");
-      setCategories(challengeCats);
+
+      // Categories only needed for admin create/edit form
+      if (isAdmin) {
+        const categoriesRes = await fetch("/api/admin/categories");
+        const categoriesJson = await categoriesRes.json();
+        if (categoriesRes.ok && categoriesJson.success) {
+          const challengeCats = (categoriesJson.data as Category[]).filter(
+            (c) => c.type === "challenge",
+          );
+          setCategories(challengeCats);
+        }
+      } else {
+        setCategories([]);
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -173,13 +180,15 @@ export default function ChallengesManagementPage() {
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
         <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / GAMIFICATION / CHALLENGES
+          {isAdmin ? "# ADMIN / GAMIFICATION / CHALLENGES" : "# GAMIFICATION / CHALLENGES"}
         </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           SUSTAINABILITY CHALLENGES
         </h1>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Configure employee sustainability goals and rewards lifecycle (Draft → Active → Under Review → Completed → Archived).
+          {isAdmin
+            ? "Configure employee sustainability goals and rewards lifecycle (Draft → Active → Under Review → Completed → Archived)."
+            : "Browse active sustainability challenges and track XP rewards."}
         </p>
       </div>
 
@@ -200,7 +209,7 @@ export default function ChallengesManagementPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading || roleLoading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" />
           <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
@@ -208,13 +217,13 @@ export default function ChallengesManagementPage() {
           </span>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: (isAdding || editingChallenge) ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isAdmin && (isAdding || editingChallenge) ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
           
           {/* ── LIST VIEW ── */}
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
               <div className="card-header" style={{ marginBottom: 0 }}>ACTIVE CHALLENGES LEDGER</div>
-              {!isAdding && !editingChallenge && (
+              {isAdmin && !isAdding && !editingChallenge && (
                 <button onClick={handleAddClick} className="btn btn-primary btn-sm btn-cli">
                   NEW CHALLENGE
                 </button>
@@ -233,18 +242,22 @@ export default function ChallengesManagementPage() {
                     <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EVIDENCE</th>
                     <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DEADLINE</th>
                     <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTION</th>
+                    {isAdmin && (
+                      <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTION</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {challenges.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
+                      <td colSpan={isAdmin ? 9 : 8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
                         {"// NO CHALLENGES DISPATCHED IN DATABASE SYSTEM"}
                       </td>
                     </tr>
                   ) : (
-                    challenges.map((c) => (
+                    challenges
+                      .filter((c) => isAdmin || c.status === "active" || c.status === "under_review" || c.status === "completed")
+                      .map((c) => (
                       <tr 
                         key={c.id} 
                         style={{ 
@@ -274,14 +287,16 @@ export default function ChallengesManagementPage() {
                             {c.status.toUpperCase()}
                           </span>
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                          <button 
-                            onClick={() => handleEditClick(c)} 
-                            className="btn btn-secondary btn-sm"
-                          >
-                            $ edit
-                          </button>
-                        </td>
+                        {isAdmin && (
+                          <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
+                            <button 
+                              onClick={() => handleEditClick(c)} 
+                              className="btn btn-secondary btn-sm"
+                            >
+                              $ edit
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
@@ -290,8 +305,8 @@ export default function ChallengesManagementPage() {
             </div>
           </div>
 
-          {/* ── CREATE / EDIT PANEL ── */}
-          {(isAdding || editingChallenge) && (
+          {/* ── CREATE / EDIT PANEL (admin only) ── */}
+          {isAdmin && (isAdding || editingChallenge) && (
             <div className="card-elevated" style={{ height: "fit-content" }}>
               <div className="card-header">
                 {isAdding ? "INITIALIZE CHALLENGE" : `CONFIGURE CH: ${editingChallenge?.id}`}
