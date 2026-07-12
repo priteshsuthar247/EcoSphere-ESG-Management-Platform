@@ -36,3 +36,12 @@ export const SOCIAL_READ_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head
 export const SOCIAL_MANAGE_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
 export const SOCIAL_APPROVE_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
 export const SOCIAL_DIVERSITY_ROLES: UserRole[] = ['admin', 'ceo'];
+
+/**
+ * Roles allowed to access Governance module pages.
+ */
+export const GOV_POLICY_READ_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head', 'employee'];
+export const GOV_POLICY_MANAGE_ROLES: UserRole[] = ['admin', 'ceo'];
+export const GOV_ACK_READ_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
+export const GOV_AUDIT_ROLES: UserRole[] = ['admin', 'ceo'];
+export const GOV_COMPLIANCE_ROLES: UserRole[] = ['admin', 'ceo', 'departmental_head'];
