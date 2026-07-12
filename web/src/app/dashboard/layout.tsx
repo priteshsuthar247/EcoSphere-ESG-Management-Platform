@@ -7,17 +7,16 @@ import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
 import type { UserRole } from "@/lib/auth";
 
-// Nav items visible per role
 const NAV_SECTIONS: {
   section: string;
   items: { label: string; href: string; roles: UserRole[] }[];
 }[] = [
   {
-    section: "OVERVIEW",
+    section: "Overview",
     items: [{ label: "Dashboard", href: "/dashboard", roles: ["admin", "ceo", "departmental_head", "employee"] }],
   },
   {
-    section: "ENVIRONMENTAL",
+    section: "Environmental",
     items: [
       { label: "Emission Factors", href: "/dashboard/environmental/emissions", roles: ["admin", "ceo", "departmental_head"] },
       { label: "Product ESG Profiles", href: "/dashboard/environmental/products", roles: ["admin", "ceo"] },
@@ -26,7 +25,7 @@ const NAV_SECTIONS: {
     ],
   },
   {
-    section: "SOCIAL",
+    section: "Social",
     items: [
       { label: "CSR Activities", href: "/dashboard/social/csr", roles: ["admin", "ceo", "departmental_head", "employee"] },
       { label: "Employee Participation", href: "/dashboard/social/participation", roles: ["admin", "ceo", "departmental_head", "employee"] },
@@ -34,7 +33,7 @@ const NAV_SECTIONS: {
     ],
   },
   {
-    section: "GOVERNANCE",
+    section: "Governance",
     items: [
       { label: "Policies", href: "/dashboard/governance/policies", roles: ["admin", "ceo", "departmental_head", "employee"] },
       { label: "Policy Acknowledgements", href: "/dashboard/governance/acknowledgements", roles: ["admin", "ceo", "departmental_head"] },
@@ -43,7 +42,7 @@ const NAV_SECTIONS: {
     ],
   },
   {
-    section: "GAMIFICATION",
+    section: "Gamification",
     items: [
       { label: "Challenges", href: "/dashboard/gamification/challenges", roles: ["admin", "ceo", "departmental_head", "employee"] },
       { label: "Challenge Participation", href: "/dashboard/gamification/participation", roles: ["admin", "departmental_head", "employee"] },
@@ -53,14 +52,14 @@ const NAV_SECTIONS: {
     ],
   },
   {
-    section: "REPORTS",
+    section: "Reports",
     items: [
       { label: "ESG Summary", href: "/dashboard/reports", roles: ["admin", "ceo"] },
       { label: "Custom Report Builder", href: "/dashboard/reports/builder", roles: ["admin", "ceo"] },
     ],
   },
   {
-    section: "SETTINGS",
+    section: "Settings",
     items: [
       { label: "User Management", href: "/dashboard/settings/users", roles: ["admin"] },
       { label: "Departments", href: "/dashboard/settings/departments", roles: ["admin"] },
@@ -72,10 +71,10 @@ const NAV_SECTIONS: {
 ];
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: "ADMIN",
+  admin: "Admin",
   ceo: "CEO",
-  departmental_head: "DEPT HEAD",
-  employee: "EMPLOYEE",
+  departmental_head: "Dept Head",
+  employee: "Employee",
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -85,40 +84,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="dashboard-layout">
-      {/* ── SIDEBAR ── */}
       <aside className="sidebar" role="navigation" aria-label="Main navigation">
-        {/* Logo */}
         <div className="sidebar-logo">
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "14px",
+              fontFamily: "var(--font-sans)",
+              fontSize: "16px",
               fontWeight: 700,
-              color: "var(--color-primary)",
-              letterSpacing: "0.04em",
+              color: "var(--color-text-primary)",
+              letterSpacing: "-0.02em",
             }}
           >
-            [ECOSPHERE]
+            EcoSphere
           </div>
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "10px",
+              fontFamily: "var(--font-sans)",
+              fontSize: "12px",
               color: "var(--color-text-dim)",
-              letterSpacing: "0.08em",
               marginTop: "2px",
             }}
           >
-            ESG MANAGEMENT PLATFORM
+            ESG Management
           </div>
         </div>
 
-        {/* Nav sections */}
         <nav className="sidebar-nav">
           {NAV_SECTIONS.map((section) => {
-            const visible = section.items.filter((item) =>
-              item.roles.includes(role)
-            );
+            const visible = section.items.filter((item) => item.roles.includes(role));
             if (!visible.length) return null;
             return (
               <div key={section.section}>
@@ -133,66 +126,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Sidebar footer: user info + logout */}
         <div className="sidebar-footer">
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              color: "var(--color-text-dim)",
-              lineHeight: "20px",
+              fontFamily: "var(--font-sans)",
+              fontSize: "13px",
+              color: "var(--color-text-muted)",
+              lineHeight: "1.5",
               marginBottom: "var(--space-3)",
             }}
           >
-            <div style={{ color: "var(--color-primary)" }}>{userName}</div>
+            <div style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{userName}</div>
             <div>
-              role:{" "}
-              <span style={{ color: "var(--color-secondary)" }}>
-                {ROLE_LABELS[role] ?? role}
-              </span>
+              {ROLE_LABELS[role] ?? role}
             </div>
           </div>
           <LogoutButton />
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
       <div className="dashboard-main">
-        {/* Topbar */}
         <header className="topbar">
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "12px",
-              color: "var(--color-text-dim)",
+              fontFamily: "var(--font-sans)",
+              fontSize: "14px",
+              color: "var(--color-text-muted)",
+              fontWeight: 500,
             }}
           >
-            <span style={{ color: "var(--color-primary)" }}>ecosphere</span>
-            <span style={{ color: "var(--color-text-dim)" }}>@platform</span>
-            <span style={{ color: "var(--color-secondary)" }}>:~$</span>
+            Workspace
           </div>
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              color: "var(--color-text-dim)",
+              fontFamily: "var(--font-sans)",
+              fontSize: "13px",
+              color: "var(--color-text-muted)",
               display: "flex",
               alignItems: "center",
-              gap: "var(--space-4)",
+              gap: "var(--space-3)",
             }}
           >
-            <span>
-              role:{" "}
-              <span style={{ color: "var(--color-secondary)" }}>
-                {ROLE_LABELS[role] ?? role}
-              </span>
-            </span>
-            <span style={{ color: "var(--color-border-medium)" }}>|</span>
-            <span style={{ color: "var(--color-primary)" }}>{userName}</span>
+            <span className="chip chip-cyan">{ROLE_LABELS[role] ?? role}</span>
+            <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{userName}</span>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="dashboard-content">{children}</main>
       </div>
     </div>
