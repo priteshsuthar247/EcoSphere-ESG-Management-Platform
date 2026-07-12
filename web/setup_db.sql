@@ -432,7 +432,7 @@ INSERT IGNORE INTO users (name, email, password_hash, role, status)
 VALUES (
     'System Administrator',
     'admin@ecosphere.com',
-    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TsntZ2Gy9vMD6YXRL8eY7cKQWQRa',
+    '$2b$12$mgc02ynQxY0m1htduK6gquoAeNd0GOfW4T9wP5myOGPhBNOC3suKG',
     'admin',
     'active'
 );
