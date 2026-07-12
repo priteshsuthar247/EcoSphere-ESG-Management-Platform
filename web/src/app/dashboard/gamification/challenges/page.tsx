@@ -1,10 +1,26 @@
 "use client";
 // src/app/dashboard/gamification/challenges/page.tsx
-// Challenges panel - TerminalUI design system
-// Admin: full CRUD. Employees/others: view active challenges only.
+// Challenges panel — server-side list filters + shared UI
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
+import Modal from "@/components/Modal";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface Challenge {
   id: number;
@@ -34,10 +50,12 @@ export default function ChallengesManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [joiningId, setJoiningId] = useState<number | null>(null);
 
-  // Drawer status (admin only)
   const [isAdding, setIsAdding] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
+
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
   // Form parameters
   const [formTitle, setFormTitle] = useState("");
@@ -52,16 +70,12 @@ export default function ChallengesManagementPage() {
   const [formMaxParticipants, setFormMaxParticipants] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!roleLoading) fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleLoading, isAdmin]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const challengesRes = await fetch("/api/gamification/challenges");
+      const qs = queryString ? `?${queryString}` : "";
+      const challengesRes = await fetch(`/api/gamification/challenges${qs}`);
       const challengesJson = await challengesRes.json();
 
       if (!challengesRes.ok || !challengesJson.success) {
@@ -70,7 +84,6 @@ export default function ChallengesManagementPage() {
 
       setChallenges(challengesJson.data);
 
-      // Categories only needed for admin create/edit form
       if (isAdmin) {
         const categoriesRes = await fetch("/api/admin/categories");
         const categoriesJson = await categoriesRes.json();
@@ -88,7 +101,11 @@ export default function ChallengesManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString, isAdmin]);
+
+  useEffect(() => {
+    if (!roleLoading) fetchData();
+  }, [roleLoading, fetchData]);
 
   function handleAddClick() {
     setIsAdding(true);
@@ -130,6 +147,37 @@ export default function ChallengesManagementPage() {
     setError("");
   }
 
+  async function handleJoin(challengeId: number) {
+    setJoiningId(challengeId);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch("/api/gamification/participation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", challenge_id: challengeId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Could not join challenge");
+      setSuccess(
+        "Joined challenge. Submit proof from Challenge Approvals (managers) or contact your lead.",
+      );
+      await fetch("/api/gamification/participation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "submit",
+          id: json.data.id,
+          progress_percent: 100,
+        }),
+      }).catch(() => {});
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setJoiningId(null);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -147,7 +195,7 @@ export default function ChallengesManagementPage() {
       startDate: formStartDate || null,
       endDate: formEndDate,
       status: formStatus,
-      maxParticipants: formMaxParticipants ? parseInt(formMaxParticipants, 10) : null
+      maxParticipants: formMaxParticipants ? parseInt(formMaxParticipants, 10) : null,
     };
 
     try {
@@ -156,7 +204,7 @@ export default function ChallengesManagementPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
@@ -164,7 +212,11 @@ export default function ChallengesManagementPage() {
         throw new Error(json.error || "Failed to commit challenge details");
       }
 
-      setSuccess(editingChallenge ? "Challenge details updated." : "New challenge registered successfully.");
+      setSuccess(
+        editingChallenge
+          ? "Challenge details updated."
+          : "New challenge registered successfully.",
+      );
       setIsAdding(false);
       setEditingChallenge(null);
       fetchData();
@@ -175,379 +227,366 @@ export default function ChallengesManagementPage() {
     }
   }
 
+  const getChallengeSort = useCallback((c: Challenge, key: string) => {
+    switch (key) {
+      case "id":
+        return c.id;
+      case "title":
+        return c.title;
+      case "category":
+        return c.category_name ?? "";
+      case "xp":
+        return c.xp_reward;
+      case "difficulty":
+        return c.difficulty;
+      case "evidence":
+        return c.evidence_required;
+      case "deadline":
+        return c.end_date ?? "";
+      case "status":
+        return c.status;
+      default:
+        return "";
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(
+    challenges,
+    getChallengeSort,
+    "id",
+  );
+  const formOpen = isAdmin && (isAdding || editingChallenge !== null);
+
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          {isAdmin ? "# ADMIN / GAMIFICATION / CHALLENGES" : "# GAMIFICATION / CHALLENGES"}
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          SUSTAINABILITY CHALLENGES
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          {isAdmin
+      <PageHeader
+        title="Sustainability challenges"
+        description={
+          isAdmin
             ? "Configure employee sustainability goals and rewards lifecycle (Draft → Active → Under Review → Completed → Archived)."
-            : "Browse active sustainability challenges and track XP rewards."}
-        </p>
-      </div>
+            : "Browse active sustainability challenges and track XP rewards."
+        }
+      />
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading || roleLoading ? (
-        <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-          <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            RETRIEVING CHALLENGES DATA...
-          </span>
-        </div>
+        <LoadingState label="Loading challenges…" />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: isAdmin && (isAdding || editingChallenge) ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
-          
-          {/* ── LIST VIEW ── */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
-              <div className="card-header" style={{ marginBottom: 0 }}>ACTIVE CHALLENGES LEDGER</div>
-              {isAdmin && !isAdding && !editingChallenge && (
-                <button onClick={handleAddClick} className="btn btn-primary btn-sm btn-cli">
-                  NEW CHALLENGE
-                </button>
-              )}
-            </div>
+        <>
+          <TableFilters
+            search={draft.search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search challenges, category…"
+            status={draft.status}
+            onStatusChange={setStatus}
+            statusOptions={[
+              { value: "all", label: "All statuses" },
+              { value: "draft", label: "Draft" },
+              { value: "active", label: "Active" },
+              { value: "under_review", label: "Under review" },
+              { value: "completed", label: "Completed" },
+              { value: "archived", label: "Archived" },
+            ]}
+            onApply={apply}
+            applying={loading}
+          />
 
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+          {isAdmin && (
+            <ToolbarActions>
+              <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
+                New challenge
+              </button>
+            </ToolbarActions>
+          )}
+
+          <div>
+            <SectionTitle>Challenges ledger</SectionTitle>
+            <DataTableWrap>
+              <DataTable>
                 <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>TITLE</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>CATEGORY</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>REWARD (XP)</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DIFFICULTY</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EVIDENCE</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DEADLINE</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                    {isAdmin && (
-                      <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTION</th>
-                    )}
+                  <tr>
+                    <SortableTh
+                      label="ID"
+                      columnKey="id"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Title"
+                      columnKey="title"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Category"
+                      columnKey="category"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Reward (XP)"
+                      columnKey="xp"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Difficulty"
+                      columnKey="difficulty"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Evidence"
+                      columnKey="evidence"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Deadline"
+                      columnKey="deadline"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <SortableTh
+                      label="Status"
+                      columnKey="status"
+                      sortKey={sortKey}
+                      sortDir={sortDir}
+                      onSort={toggle}
+                    />
+                    <ActionTh />
                   </tr>
                 </thead>
                 <tbody>
-                  {challenges.length === 0 ? (
-                    <tr>
-                      <td colSpan={isAdmin ? 9 : 8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        {"// NO CHALLENGES DISPATCHED IN DATABASE SYSTEM"}
-                      </td>
-                    </tr>
+                  {sorted.length === 0 ? (
+                    <DataTableEmptyRow colSpan={9} message="No challenges found." />
                   ) : (
-                    challenges
-                      .filter((c) => isAdmin || c.status === "active" || c.status === "under_review" || c.status === "completed")
-                      .map((c) => (
-                      <tr 
-                        key={c.id} 
-                        style={{ 
-                          borderBottom: "1px solid var(--color-border-subtle)", 
-                          background: editingChallenge?.id === c.id ? "rgba(0, 255, 65, 0.04)" : "transparent"
-                        }}
-                      >
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(c.id).padStart(3, "0")}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{c.title}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
-                          {c.category_name ? `> ${c.category_name}` : "// NONE"}
+                    sorted.map((c) => (
+                      <tr key={c.id}>
+                        <td className="col-id">{String(c.id).padStart(3, "0")}</td>
+                        <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>
+                          {c.title}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>{c.xp_reward} XP</td>
-                        <td style={{ padding: "10px var(--space-3)" }}>
-                          <span className={`chip ${c.difficulty === "easy" ? "chip-green" : c.difficulty === "medium" ? "chip-cyan" : "chip-amber"}`}>
-                            {c.difficulty.toUpperCase()}
-                          </span>
+                        <td style={{ color: "var(--color-text-muted)" }}>
+                          {c.category_name || "—"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>
-                          {c.evidence_required === 1 ? "[x] REQ" : "[ ] OPT"}
+                        <td style={{ color: "var(--color-primary)" }}>{c.xp_reward} XP</td>
+                        <td>
+                          <StatusChip status={c.difficulty} />
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>
+                        <td style={{ color: "var(--color-text-dim)" }}>
+                          {c.evidence_required === 1 ? "Required" : "Optional"}
+                        </td>
+                        <td style={{ color: "var(--color-text-muted)" }}>
                           {c.end_date ? c.end_date.split("T")[0] : "–"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)" }}>
-                          <span className={`chip ${c.status === "active" ? "chip-green" : c.status === "draft" ? "chip-muted" : c.status === "under_review" ? "chip-cyan" : c.status === "completed" ? "chip-cyan" : "chip-red"}`}>
-                            {c.status.toUpperCase()}
-                          </span>
+                        <td>
+                          <StatusChip status={c.status} />
                         </td>
-                        {isAdmin && (
-                          <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                            <button 
-                              onClick={() => handleEditClick(c)} 
+                        <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(c)}
                               className="btn btn-secondary btn-sm"
+                              style={{ marginRight: 6 }}
                             >
-                              $ edit
+                              Edit
                             </button>
-                          </td>
-                        )}
+                          )}
+                          {c.status === "active" && (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              disabled={joiningId === c.id}
+                              onClick={() => handleJoin(c.id)}
+                            >
+                              {joiningId === c.id ? "Joining…" : "Join"}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableWrap>
           </div>
 
-          {/* ── CREATE / EDIT PANEL (admin only) ── */}
-          {isAdmin && (isAdding || editingChallenge) && (
-            <div className="card-elevated" style={{ height: "fit-content" }}>
-              <div className="card-header">
-                {isAdding ? "INITIALIZE CHALLENGE" : `CONFIGURE CH: ${editingChallenge?.id}`}
-              </div>
-
-              <form onSubmit={handleSubmit}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  
-                  {/* Title field */}
-                  <div className="form-group">
-                    <label className="form-label">CHALLENGE TITLE</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. Ride to Work Week"
-                        value={formTitle}
-                        onChange={(e) => setFormTitle(e.target.value)}
-                        required
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Category selection */}
-                  <div className="form-group">
-                    <label className="form-label">CLASSIFICATION CATEGORY</label>
-                    <div>
-                      <select 
-                        value={formCategoryId}
-                        onChange={(e) => setFormCategoryId(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="null">{"// NO CATEGORY ASSIGNED"}</option>
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>
-                            &gt; {cat.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* XP Reward field */}
-                  <div className="form-group">
-                    <label className="form-label">XP / POINTS REWARD</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="number" 
-                        className="form-input"
-                        placeholder="e.g. 150"
-                        value={formXpReward}
-                        onChange={(e) => setFormXpReward(e.target.value)}
-                        required
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Difficulty field */}
-                  <div className="form-group">
-                    <label className="form-label">DIFFICULTY LEVEL</label>
-                    <div>
-                      <select 
-                        value={formDifficulty}
-                        onChange={(e) => setFormDifficulty(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="easy">EASY</option>
-                        <option value="medium">MEDIUM</option>
-                        <option value="hard">HARD</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Max Participants field */}
-                  <div className="form-group">
-                    <label className="form-label">MAX PARTICIPANTS</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="number" 
-                        className="form-input"
-                        placeholder="e.g. 50 (leave blank for unlimited)"
-                        value={formMaxParticipants}
-                        onChange={(e) => setFormMaxParticipants(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Start Date field */}
-                  <div className="form-group">
-                    <label className="form-label">STARTING DATE</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="date" 
-                        className="form-input"
-                        value={formStartDate}
-                        onChange={(e) => setFormStartDate(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* End Date field */}
-                  <div className="form-group">
-                    <label className="form-label">DEADLINE / END DATE</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="date" 
-                        className="form-input"
-                        value={formEndDate}
-                        onChange={(e) => setFormEndDate(e.target.value)}
-                        required
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Evidence required checkbox */}
-                  <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
-                    <button
-                      type="button"
-                      onClick={() => setFormEvidenceRequired(!formEvidenceRequired)}
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "13px",
-                        background: "transparent",
-                        border: "none",
-                        color: "var(--color-primary)",
-                        cursor: "pointer"
-                      }}
-                      disabled={submitting}
-                    >
-                      {formEvidenceRequired ? "[x]" : "[ ]"} EVIDENCE REQUIRED FOR SUBMISSION
-                    </button>
-                  </div>
-
-                  {/* Lifecycle status selection */}
-                  <div className="form-group">
-                    <label className="form-label">LIFECYCLE STATUS</label>
-                    <div>
-                      <select 
-                        value={formStatus}
-                        onChange={(e) => setFormStatus(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="draft">DRAFT</option>
-                        <option value="active">ACTIVE</option>
-                        <option value="under_review">UNDER REVIEW</option>
-                        <option value="completed">COMPLETED</option>
-                        <option value="archived">ARCHIVED</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Description field */}
-                  <div className="form-group">
-                    <label className="form-label">CHALLENGE DESCRIPTION</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. Reduce corporate carbon emissions by commuting via cycle."
-                        value={formDescription}
-                        onChange={(e) => setFormDescription(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  <div 
-                    className="ascii-divider" 
-                    style={{ color: "var(--color-border-subtle)", margin: "var(--space-2) 0" }}
+          <Modal
+            open={formOpen}
+            title={isAdding ? "New challenge" : `Edit challenge #${editingChallenge?.id ?? ""}`}
+            onClose={() => {
+              if (!submitting) closePanel();
+            }}
+            width={640}
+          >
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+                <div className="form-group">
+                  <label className="form-label required">Challenge title</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Ride to Work Week"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    required
+                    disabled={submitting}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Category</label>
+                  <select
+                    className="form-input"
+                    value={formCategoryId}
+                    onChange={(e) => setFormCategoryId(e.target.value)}
+                    disabled={submitting}
                   >
-                    {"─".repeat(24)}
-                  </div>
-
-                  {/* Buttons */}
-                  <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                    <button 
-                      type="submit" 
-                      disabled={submitting || !formTitle || !formEndDate}
-                      className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`}
-                    >
-                      {submitting ? "COMMITTING" : "COMMIT"}
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={closePanel}
-                      className="btn btn-ghost btn-md btn-full"
+                    <option value="null">No category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label required">XP / points reward</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={formXpReward}
+                    onChange={(e) => setFormXpReward(e.target.value)}
+                    required
+                    disabled={submitting}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Difficulty</label>
+                  <select
+                    className="form-input"
+                    value={formDifficulty}
+                    onChange={(e) => setFormDifficulty(e.target.value)}
+                    disabled={submitting}
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Max participants</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="Leave blank for unlimited"
+                    value={formMaxParticipants}
+                    onChange={(e) => setFormMaxParticipants(e.target.value)}
+                    disabled={submitting}
+                  />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+                  <div className="form-group">
+                    <label className="form-label">Start date</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formStartDate}
+                      onChange={(e) => setFormStartDate(e.target.value)}
                       disabled={submitting}
-                    >
-                      CANCEL
-                    </button>
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label required">End date</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formEndDate}
+                      onChange={(e) => setFormEndDate(e.target.value)}
+                      required
+                      disabled={submitting}
+                    />
                   </div>
                 </div>
-              </form>
-            </div>
-          )}
-
-        </div>
+                <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formEvidenceRequired}
+                      onChange={(e) => setFormEvidenceRequired(e.target.checked)}
+                      disabled={submitting}
+                    />
+                    Evidence required for submission
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Lifecycle status</label>
+                  <select
+                    className="form-input"
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value)}
+                    disabled={submitting}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                    <option value="under_review">Under review</option>
+                    <option value="completed">Completed</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    disabled={submitting}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button
+                    type="submit"
+                    disabled={submitting || !formTitle || !formEndDate}
+                    className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`}
+                  >
+                    {submitting
+                      ? "Saving…"
+                      : editingChallenge
+                        ? "Save changes"
+                        : "Create challenge"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePanel}
+                    className="btn btn-ghost btn-md btn-full"
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          </Modal>
+        </>
       )}
     </div>
   );

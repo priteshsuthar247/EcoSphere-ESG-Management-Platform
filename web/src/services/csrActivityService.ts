@@ -65,14 +65,22 @@ function normalize(row: CsrActivity): CsrActivity {
 
 export async function listCsrActivities(options?: {
   status?: string | 'all';
+  search?: string;
 }): Promise<CsrActivity[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('a.status = ?');
       params.push(options.status);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(a.title LIKE ? OR a.description LIKE ? OR a.location LIKE ? OR c.name LIKE ? OR CAST(a.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -175,7 +183,7 @@ export async function updateCsrActivity(
 ): Promise<CsrActivity | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     if (input.title !== undefined) {
       fields.push('title = ?');

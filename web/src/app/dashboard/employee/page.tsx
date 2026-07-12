@@ -4,6 +4,9 @@
 import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 interface EmpStats extends RowDataPacket {
   esg_points_balance: number;
@@ -70,32 +73,34 @@ export default async function EmployeeDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>Employee</div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--color-text-primary)", marginBottom: 6 }}>
-          Your workspace
-        </h1>
-        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
-          Welcome back, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>. Your ESG activity summary.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Employee"
+        title="Your workspace"
+        description={`Welcome back, ${userName}. Your ESG activity summary.`}
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <StatsGrid>
         {statCards.map((s) => (
-          <div key={s.label} className="stat-card">
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
-              {s.label}
-            </div>
-            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: s.color, lineHeight: 1.2 }}>
-              {s.value}
-              {s.suffix && <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4 }}>{s.suffix}</span>}
-            </div>
-          </div>
+          <StatCard
+            key={s.label}
+            label={s.label}
+            color={s.color}
+            value={
+              <>
+                {s.value}
+                {s.suffix ? (
+                  <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4, fontWeight: 500 }}>
+                    {s.suffix}
+                  </span>
+                ) : null}
+              </>
+            }
+          />
         ))}
-      </div>
+      </StatsGrid>
 
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div className="card-header">Recent notifications</div>
+      <section className="section-gap">
+        <SectionTitle>Recent notifications</SectionTitle>
         {notifications.length === 0 ? (
           <div className="card" style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
             No notifications. You’re all caught up.
@@ -103,36 +108,51 @@ export default async function EmployeeDashboard() {
         ) : (
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             {notifications.map((n, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 16px", borderBottom: "1px solid var(--color-hairline)", fontSize: 14, background: n.is_read ? "transparent" : "rgba(0,117,222,0.04)" }}>
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  padding: "var(--space-3) var(--space-4)",
+                  borderBottom: "1px solid var(--color-hairline)",
+                  fontSize: 14,
+                  background: n.is_read ? "transparent" : "rgba(0,117,222,0.04)",
+                }}
+              >
                 <div>
                   <div style={{ color: n.is_read ? "var(--color-text-muted)" : "var(--color-text-primary)", fontWeight: 600, marginBottom: 2 }}>
                     {n.title}
                   </div>
                   <div style={{ color: "var(--color-text-dim)", fontSize: 13 }}>{n.message}</div>
                 </div>
-                {!n.is_read && <span className="chip chip-cyan" style={{ flexShrink: 0, marginLeft: "var(--space-4)" }}>New</span>}
+                {!n.is_read && (
+                  <span className="chip chip-cyan" style={{ flexShrink: 0, marginLeft: "var(--space-4)" }}>
+                    New
+                  </span>
+                )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div>
-        <div className="card-header">Quick actions</div>
+      <section>
+        <SectionTitle>Quick actions</SectionTitle>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
-            { label: "Browse CSR Activities",  href: "/dashboard/social/csr" },
-            { label: "Join a Challenge",        href: "/dashboard/gamification/challenges" },
-            { label: "View Badges",             href: "/dashboard/gamification/badges" },
-            { label: "Redeem Rewards",          href: "/dashboard/gamification/rewards" },
-            { label: "Read Policies",           href: "/dashboard/governance/policies" },
+            { label: "Browse CSR Activities", href: "/dashboard/social/csr" },
+            { label: "Join a Challenge", href: "/dashboard/gamification/challenges" },
+            { label: "View Badges", href: "/dashboard/gamification/badges" },
+            { label: "Redeem Rewards", href: "/dashboard/gamification/rewards" },
+            { label: "Read Policies", href: "/dashboard/governance/policies" },
           ].map((a) => (
-            <a key={a.label} href={a.href} className="btn btn-secondary btn-md btn-cli">
+            <a key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
             </a>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

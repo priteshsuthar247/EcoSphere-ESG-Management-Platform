@@ -11,14 +11,16 @@ export async function POST(request: NextRequest) {
 
   const response = successResponse(null, 'Logged out successfully');
 
-  // Clear the auth cookie
+  // Clear the auth cookie (must match path/sameSite used at login)
   response.cookies.set('auth-token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 0,
     path: '/',
   });
+
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   return response;
 }

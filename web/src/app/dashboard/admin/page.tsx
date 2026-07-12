@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
 import Link from "next/link";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 interface Stats extends RowDataPacket {
   total_users: number;
@@ -57,71 +60,20 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "var(--color-primary)",
-            marginBottom: 6,
-          }}
-        >
-          Admin
-        </div>
-        <h1
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            letterSpacing: "-0.5px",
-            color: "var(--color-text-primary)",
-            marginBottom: 6,
-          }}
-        >
-          Executive overview
-        </h1>
-        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
-          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
-          Full system access.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Admin"
+        title="Executive overview"
+        description={`Welcome, ${userName}. Full system access.`}
+      />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "var(--space-4)",
-          marginBottom: "var(--space-8)",
-        }}
-      >
+      <StatsGrid>
         {statCards.map((s) => (
-          <div key={s.label} className="stat-card">
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--color-text-dim)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              {s.label}
-            </div>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 700,
-                letterSpacing: "-0.5px",
-                color: s.color,
-                lineHeight: 1.2,
-              }}
-            >
-              {s.value}
-            </div>
-          </div>
+          <StatCard key={s.label} label={s.label} value={s.value} color={s.color} />
         ))}
-      </div>
+      </StatsGrid>
 
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div className="card-header">Quick actions</div>
+      <section className="section-gap">
+        <SectionTitle>Quick actions</SectionTitle>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {actions.map((a) => (
             <Link key={a.label} href={a.href} className="btn btn-secondary btn-md">
@@ -129,17 +81,11 @@ export default async function AdminDashboard() {
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div>
-        <div className="card-header">Module status</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "var(--space-3)",
-          }}
-        >
+      <section>
+        <SectionTitle>Module status</SectionTitle>
+        <div className="responsive-grid-2">
           {modules.map((m) => (
             <div
               key={m}
@@ -147,7 +93,7 @@ export default async function AdminDashboard() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "12px 16px",
+                padding: "var(--space-3) var(--space-4)",
                 border: "1px solid var(--color-hairline)",
                 borderRadius: "var(--radius-md)",
                 background: "var(--color-surface)",
@@ -159,7 +105,7 @@ export default async function AdminDashboard() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

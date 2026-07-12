@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get('status') as ApprovalStatus | 'all') || 'all';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
     const includeMeta = searchParams.get('meta') === '1';
     const activityIdParam = searchParams.get('activity_id');
 
@@ -42,8 +43,10 @@ export async function GET(request: NextRequest) {
       departmentId?: number | null;
       approvalStatus?: ApprovalStatus | 'all';
       activityId?: number;
+      search?: string;
     } = {
       approvalStatus: status,
+      search: search || undefined,
     };
 
     if (isEmployeeOnly) {
@@ -260,7 +263,7 @@ export async function PUT(request: NextRequest) {
       }
       if (msg === 'PROOF_REQUIRED') {
         return errorResponse(
-          'Proof is required before approval for this activity',
+          'Proof is required before approval (activity evidence rule or global CSR evidence setting).',
           400,
           'PROOF_REQUIRED',
         );

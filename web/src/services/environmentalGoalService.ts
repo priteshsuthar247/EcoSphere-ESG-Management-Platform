@@ -82,6 +82,7 @@ function normalizeGoal(row: EnvironmentalGoal): EnvironmentalGoal {
 export async function listEnvironmentalGoals(options?: {
   departmentId?: number | null;
   status?: string | 'all';
+  search?: string;
 }): Promise<EnvironmentalGoal[]> {
   try {
     const clauses: string[] = [];
@@ -95,6 +96,13 @@ export async function listEnvironmentalGoals(options?: {
     if (options?.status && options.status !== 'all') {
       clauses.push('g.status = ?');
       params.push(options.status);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(g.name LIKE ? OR g.description LIKE ? OR g.unit LIKE ? OR d.name LIKE ? OR CAST(g.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

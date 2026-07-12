@@ -3,6 +3,23 @@
 // Product ESG Profiles — TerminalUI
 
 import { useCallback, useEffect, useState } from "react";
+import Modal from "@/components/Modal";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Product {
   id: number;
@@ -64,6 +81,7 @@ export default function ProductEsgProfilesPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -77,7 +95,9 @@ export default function ProductEsgProfilesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/environmental/products?status=all");
+      const res = await fetch(
+        `/api/environmental/products${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load products");
       setItems(json.data.items);
@@ -87,7 +107,7 @@ export default function ProductEsgProfilesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -196,27 +216,28 @@ export default function ProductEsgProfilesPage() {
     }
   }
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    background: "var(--color-bg)",
-    border: "1px solid var(--color-border-medium)",
-    color: "var(--color-primary)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "14px",
-    outline: "none",
-    borderRadius: "0px",
-  };
 
   const stageLabel = (v: string) =>
     LIFECYCLE_STAGES.find((s) => s.value === v)?.label ?? v;
 
+    const getSortValue = useCallback((row: Product, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "name": return row.name;
+      case "sku": return row.sku ?? "";
+      case "category": return row.category ?? "";
+      case "footprint": return row.carbon_footprint_kgco2e_per_unit ?? null;
+      case "stages": return row.lifecycle_stage_count;
+      case "status": return row.status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(items, getSortValue, "id");
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ENVIRONMENTAL / PRODUCT-ESG-PROFILES
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           PRODUCT ESG PROFILES
         </h1>
@@ -231,15 +252,15 @@ export default function ProductEsgProfilesPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// PRODUCTS"}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>PRODUCTS</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.total ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// ACTIVE"}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>ACTIVE</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TOTAL FOOTPRINT"}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>TOTAL FOOTPRINT</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--color-secondary)" }}>
             {stats ? `${Number(stats.total_footprint).toFixed(2)}` : "–"}
             <span style={{ fontSize: "12px", color: "var(--color-text-dim)", marginLeft: "6px" }}>kgCO₂e</span>
@@ -247,195 +268,182 @@ export default function ProductEsgProfilesPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span><span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
-      <div style={{ marginBottom: "var(--space-4)" }}>
-        <button type="button" className="btn btn-primary btn-md btn-cli" onClick={openCreate}>
-          NEW PRODUCT
-        </button>
-      </div>
+      <TableFilters
+        search={draft.search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search products, SKU, category…"
+        status={draft.status}
+        onStatusChange={setStatus}
+        statusOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+          { value: "draft", label: "Draft" },
+          { value: "archived", label: "Archived" },
+        ]}
+            
+      onApply={apply}
 
-      <div style={{ display: "grid", gridTemplateColumns: showForm || selectedId ? "1fr minmax(300px, 380px)" : "1fr", gap: "var(--space-6)" }}>
-        <div>
-          <div className="card-header">PRODUCT CATALOGUE</div>
-          {loading ? (
-            <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-              <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING PRODUCTS...</span>
-            </div>
-          ) : items.length === 0 ? (
-            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              {"// No products registered. Create a product ESG profile to continue."}
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    {["ID", "NAME", "SKU", "CATEGORY", "FOOTPRINT", "STAGES", "STATUS", "ACTION"].map((h) => (
-                      <th key={h} style={{ textAlign: h === "ACTION" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+            New product
+          </button>
+          </ToolbarActions>
+      <div>
+        <div className="card-header">Product catalogue</div>
+        {loading ? (
+          <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
+            <span className="spinner" />
+            <span style={{ marginLeft: "var(--space-3)" }}>Loading products…</span>
+          </div>
+        ) : sorted.length === 0 ? (
+          <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+            No products registered. Create a product ESG profile to continue.
+          </div>
+        ) : (
+          <div className="data-table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="SKU" columnKey="sku" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Category" columnKey="category" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Footprint" columnKey="footprint" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Stages" columnKey="stages" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((item) => (
+                  <tr key={item.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.sku || "—"}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.category || "—"}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>
+                      {item.carbon_footprint_kgco2e_per_unit === null
+                        ? "—"
+                        : `${Number(item.carbon_footprint_kgco2e_per_unit).toFixed(4)}`}
+                    </td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-tertiary)" }}>{item.lifecycle_stage_count}</td>
+                    <td style={{ padding: "10px var(--space-3)" }}>
+                      <span className={`chip ${item.status === "active" ? "chip-green" : "chip-muted"}`}>{item.status}</span>
+                    </td>
+                    <td style={{ padding: "10px var(--space-3)", textAlign: "center", whiteSpace: "nowrap" }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)} style={{ marginRight: "6px" }}>Edit</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => loadLifecycle(item.id)}>Lifecycle</button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr
-                      key={item.id}
-                      style={{
-                        borderBottom: "1px solid var(--color-border-subtle)",
-                        background: selectedId === item.id || editingId === item.id ? "rgba(0, 255, 65, 0.04)" : "transparent",
-                      }}
-                    >
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.sku || "—"}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.category || "—"}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>
-                        {item.carbon_footprint_kgco2e_per_unit === null
-                          ? "—"
-                          : `${Number(item.carbon_footprint_kgco2e_per_unit).toFixed(4)}`}
-                      </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-tertiary)" }}>{item.lifecycle_stage_count}</td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
-                        <span className={`chip ${item.status === "active" ? "chip-green" : "chip-muted"}`}>{item.status}</span>
-                      </td>
-                      <td style={{ padding: "10px var(--space-3)", textAlign: "center", whiteSpace: "nowrap" }}>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)} style={{ marginRight: "6px" }}>$ edit</button>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => loadLifecycle(item.id)}>lifecycle</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-          {showForm && (
-            <div className="card-elevated">
-              <div className="card-header">{editingId ? `EDIT PRODUCT #${editingId}` : "NEW PRODUCT PROFILE"}</div>
-              <form onSubmit={handleSubmit}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="p-name">NAME</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="p-name" className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={submitting} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="p-sku">SKU</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="p-sku" className="form-input" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} disabled={submitting} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="p-cat">CATEGORY</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="p-cat" className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} disabled={submitting} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="p-fp">FOOTPRINT (kgCO₂e / unit)</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="p-fp" className="form-input" type="number" step="any" min="0" value={form.carbon_footprint_kgco2e_per_unit} onChange={(e) => setForm({ ...form, carbon_footprint_kgco2e_per_unit: e.target.value })} disabled={submitting} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="p-status">STATUS</label>
-                    <select id="p-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={selectStyle} disabled={submitting}>
-                      <option value="active">active</option>
-                      <option value="inactive">inactive</option>
-                      <option value="draft">draft</option>
-                      <option value="archived">archived</option>
-                    </select>
-                  </div>
-                  <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                    <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                      {submitting ? "SAVING" : "COMMIT"}
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
-                      CANCEL
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {selectedId && (
-            <div className="card-elevated">
-              <div className="card-header">
-                LIFECYCLE · PRODUCT #{selectedId}
-                <button type="button" className="btn btn-ghost btn-sm" style={{ float: "right" }} onClick={() => setSelectedId(null)}>close</button>
-              </div>
-
-              {lifecycleLoading ? (
-                <div style={{ padding: "var(--space-4)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>Loading stages...</div>
-              ) : lifecycle.length === 0 ? (
-                <div style={{ padding: "var(--space-4)", fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-                  {"// No lifecycle stages recorded yet."}
-                </div>
-              ) : (
-                <div style={{ marginBottom: "var(--space-4)", maxHeight: "240px", overflowY: "auto" }}>
-                  {lifecycle.map((row) => (
-                    <div key={row.id} style={{ padding: "8px 0", borderBottom: "1px dashed var(--color-border-subtle)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
-                      <div style={{ color: "var(--color-primary)" }}>&gt; {stageLabel(row.lifecycle_stage)}</div>
-                      <div style={{ color: "var(--color-text-muted)" }}>
-                        {Number(row.emissions_kgco2e).toFixed(4)} kgCO₂e
-                        {row.calculation_method ? ` · ${row.calculation_method}` : ""}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={handleLifecycleSubmit}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="lc-stage">STAGE</label>
-                    <select id="lc-stage" value={lifecycleForm.lifecycle_stage} onChange={(e) => setLifecycleForm({ ...lifecycleForm, lifecycle_stage: e.target.value })} style={selectStyle} disabled={lifecycleSubmitting}>
-                      {LIFECYCLE_STAGES.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="lc-em">EMISSIONS (kgCO₂e)</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="lc-em" className="form-input" type="number" step="any" min="0" value={lifecycleForm.emissions_kgco2e} onChange={(e) => setLifecycleForm({ ...lifecycleForm, emissions_kgco2e: e.target.value })} required disabled={lifecycleSubmitting} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="lc-notes">NOTES</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="lc-notes" className="form-input" value={lifecycleForm.notes} onChange={(e) => setLifecycleForm({ ...lifecycleForm, notes: e.target.value })} disabled={lifecycleSubmitting} />
-                    </div>
-                  </div>
-                  <button type="submit" className={`btn btn-secondary btn-md btn-cli btn-full${lifecycleSubmitting ? " btn-loading" : ""}`} disabled={lifecycleSubmitting}>
-                    {lifecycleSubmitting ? "SAVING" : "ADD STAGE EMISSION"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      <Modal
+        open={showForm}
+        title={editingId ? `Edit product #${editingId}` : "New product profile"}
+        onClose={() => { if (!submitting) { setShowForm(false); setEditingId(null); } }}
+        width={560}
+      >
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="p-name">Name</label>
+              <input id="p-name" className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="p-sku">SKU</label>
+              <input id="p-sku" className="form-input" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="p-cat">Category</label>
+              <input id="p-cat" className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="p-fp">Footprint (kgCO₂e / unit)</label>
+              <input id="p-fp" className="form-input" type="number" step="any" min="0" value={form.carbon_footprint_kgco2e_per_unit} onChange={(e) => setForm({ ...form, carbon_footprint_kgco2e_per_unit: e.target.value })} disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="p-status">Status</label>
+              <select id="p-status" className="form-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} disabled={submitting}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-3)" }}>
+              <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                {submitting ? "Saving…" : editingId ? "Save changes" : "Create product"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={selectedId !== null}
+        title={`Lifecycle · product #${selectedId ?? ""}`}
+        onClose={() => { if (!lifecycleSubmitting) setSelectedId(null); }}
+        width={560}
+      >
+        {lifecycleLoading ? (
+          <div style={{ padding: "var(--space-4)", color: "var(--color-text-muted)" }}>Loading stages…</div>
+        ) : lifecycle.length === 0 ? (
+          <div style={{ padding: "var(--space-2)", fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "var(--space-4)" }}>
+            No lifecycle stages recorded yet.
+          </div>
+        ) : (
+          <div style={{ marginBottom: "var(--space-4)", maxHeight: "240px", overflowY: "auto" }}>
+            {lifecycle.map((row) => (
+              <div key={row.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--color-border-subtle)", fontSize: "12px" }}>
+                <div style={{ color: "var(--color-primary)", fontWeight: 500 }}>{stageLabel(row.lifecycle_stage)}</div>
+                <div style={{ color: "var(--color-text-muted)" }}>
+                  {Number(row.emissions_kgco2e).toFixed(4)} kgCO₂e
+                  {row.calculation_method ? ` · ${row.calculation_method}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={handleLifecycleSubmit}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="lc-stage">Stage</label>
+              <select id="lc-stage" className="form-input" value={lifecycleForm.lifecycle_stage} onChange={(e) => setLifecycleForm({ ...lifecycleForm, lifecycle_stage: e.target.value })} disabled={lifecycleSubmitting}>
+                {LIFECYCLE_STAGES.map((st) => (
+                  <option key={st.value} value={st.value}>{st.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="lc-em">Emissions (kgCO₂e)</label>
+              <input id="lc-em" className="form-input" type="number" step="any" min="0" value={lifecycleForm.emissions_kgco2e} onChange={(e) => setLifecycleForm({ ...lifecycleForm, emissions_kgco2e: e.target.value })} required disabled={lifecycleSubmitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="lc-notes">Notes</label>
+              <input id="lc-notes" className="form-input" value={lifecycleForm.notes} onChange={(e) => setLifecycleForm({ ...lifecycleForm, notes: e.target.value })} disabled={lifecycleSubmitting} />
+            </div>
+            <button type="submit" className={`btn btn-secondary btn-md btn-full${lifecycleSubmitting ? " btn-loading" : ""}`} disabled={lifecycleSubmitting}>
+              {lifecycleSubmitting ? "Saving…" : "Add stage emission"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

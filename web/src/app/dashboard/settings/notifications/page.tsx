@@ -15,6 +15,9 @@ export default function NotificationSettingsPage() {
   const [emailAlertsCompliance, setEmailAlertsCompliance] = useState(true);
   const [emailAlertsRedemption, setEmailAlertsRedemption] = useState(true);
   const [emailAlertsChallenges, setEmailAlertsChallenges] = useState(true);
+  const [emailAlertsCsr, setEmailAlertsCsr] = useState(true);
+  const [emailAlertsPolicyReminders, setEmailAlertsPolicyReminders] = useState(true);
+  const [emailAlertsBadges, setEmailAlertsBadges] = useState(true);
 
   // Test email parameters
   const [testEmailAddress, setTestEmailAddress] = useState("");
@@ -40,6 +43,9 @@ export default function NotificationSettingsPage() {
         setEmailAlertsCompliance(config.emailAlertsCompliance ?? true);
         setEmailAlertsRedemption(config.emailAlertsRedemption ?? true);
         setEmailAlertsChallenges(config.emailAlertsChallenges ?? true);
+        setEmailAlertsCsr(config.emailAlertsCsr ?? true);
+        setEmailAlertsPolicyReminders(config.emailAlertsPolicyReminders ?? true);
+        setEmailAlertsBadges(config.emailAlertsBadges ?? true);
       }
     } catch (err) {
       setError((err as Error).message);
@@ -62,7 +68,10 @@ export default function NotificationSettingsPage() {
           notification_config: {
             emailAlertsCompliance,
             emailAlertsRedemption,
-            emailAlertsChallenges
+            emailAlertsChallenges,
+            emailAlertsCsr,
+            emailAlertsPolicyReminders,
+            emailAlertsBadges,
           }
         })
       });
@@ -115,7 +124,7 @@ export default function NotificationSettingsPage() {
         ...prev,
         `[${new Date().toLocaleTimeString()}] > Transmission accepted by target mail relay.`,
         `[${new Date().toLocaleTimeString()}] > Verification email sent to: ${testEmailAddress}`,
-        `[${new Date().toLocaleTimeString()}] > STATUS CODE: [OK]`
+        `[${new Date().toLocaleTimeString()}] > STATUS CODE: `
       ]);
       setSuccess(`Outbound mail relay successfully verified for: ${testEmailAddress}`);
     } catch (err) {
@@ -135,9 +144,6 @@ export default function NotificationSettingsPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / SETTINGS / NOTIFICATIONS
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           NOTIFICATION CHANNELS
         </h1>
@@ -152,13 +158,11 @@ export default function NotificationSettingsPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
           <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
           <span>{success}</span>
         </div>
       )}
@@ -205,7 +209,10 @@ export default function NotificationSettingsPage() {
                   }}
                   disabled={saving}
                 >
-                  {emailAlertsCompliance ? "[x] ENABLED" : "[ ] DISABLED"}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={emailAlertsCompliance} readOnly />
+                    {emailAlertsCompliance ? "On" : "Off"}
+                  </span>
                 </button>
               </div>
 
@@ -238,7 +245,10 @@ export default function NotificationSettingsPage() {
                   }}
                   disabled={saving}
                 >
-                  {emailAlertsRedemption ? "[x] ENABLED" : "[ ] DISABLED"}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={emailAlertsRedemption} readOnly />
+                    {emailAlertsRedemption ? "On" : "Off"}
+                  </span>
                 </button>
               </div>
 
@@ -271,12 +281,78 @@ export default function NotificationSettingsPage() {
                   }}
                   disabled={saving}
                 >
-                  {emailAlertsChallenges ? "[x] ENABLED" : "[ ] DISABLED"}
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <input type="checkbox" checked={emailAlertsChallenges} readOnly />
+                    {emailAlertsChallenges ? "On" : "Off"}
+                  </span>
                 </button>
               </div>
 
-              <div 
-                className="ascii-divider" 
+              <div style={{ borderBottom: "1px dashed var(--color-border-subtle)" }} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "4px" }}>
+                    CSR approval decisions
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                    Email employees when CSR participation is approved or rejected.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailAlertsCsr(!emailAlertsCsr)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={saving}
+                >
+                  {emailAlertsCsr ? "On" : "Off"}
+                </button>
+              </div>
+
+              <div style={{ borderBottom: "1px dashed var(--color-border-subtle)" }} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "4px" }}>
+                    Policy acknowledgement reminders
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                    Remind users who have not acknowledged required policies (in-app + email).
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailAlertsPolicyReminders(!emailAlertsPolicyReminders)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={saving}
+                >
+                  {emailAlertsPolicyReminders ? "On" : "Off"}
+                </button>
+              </div>
+
+              <div style={{ borderBottom: "1px dashed var(--color-border-subtle)" }} />
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4)" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "4px" }}>
+                    Badge unlocks
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                    Email when a badge is auto-awarded for meeting unlock rules.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailAlertsBadges(!emailAlertsBadges)}
+                  className="btn btn-secondary btn-sm"
+                  disabled={saving}
+                >
+                  {emailAlertsBadges ? "On" : "Off"}
+                </button>
+              </div>
+
+              <div
+                className="ascii-divider"
                 style={{ color: "var(--color-border-subtle)", margin: "var(--space-2) 0" }}
               >
                 {"─".repeat(40)}
@@ -286,7 +362,7 @@ export default function NotificationSettingsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className={`btn btn-primary btn-md btn-cli${saving ? " btn-loading" : ""}`}
+                  className={`btn btn-primary btn-md${saving ? " btn-loading" : ""}`}
                   style={{ width: "200px" }}
                 >
                   {saving ? "COMMITTING" : "COMMIT PREFERENCES"}
@@ -307,7 +383,6 @@ export default function NotificationSettingsPage() {
               <div className="form-group" style={{ marginBottom: "var(--space-3)" }}>
                 <label className="form-label">RECIPIENT EMAIL</label>
                 <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
                   <input
                     type="email"
                     className="form-input"
@@ -323,7 +398,7 @@ export default function NotificationSettingsPage() {
               <button
                 type="submit"
                 disabled={testing || !testEmailAddress}
-                className={`btn btn-secondary btn-md btn-cli btn-full${testing ? " btn-loading" : ""}`}
+                className={`btn btn-secondary btn-md btn-full${testing ? " btn-loading" : ""}`}
               >
                 {testing ? "TRANSMITTING..." : "SEND TEST EMAIL"}
               </button>
@@ -338,7 +413,7 @@ export default function NotificationSettingsPage() {
                 <div className="terminal-block" style={{ fontSize: "12px", maxHeight: "200px", overflowY: "auto", whiteSpace: "pre-wrap" }}>
                   {testLogs.map((log, index) => {
                     const isError = log.includes("ERROR");
-                    const isOk = log.includes("[OK]");
+                    const isOk = log.includes("");
                     let cls = "t-dim";
                     if (isError) cls = "t-error";
                     else if (isOk) cls = "t-green";

@@ -66,14 +66,22 @@ function normalize(row: EsgPolicy): EsgPolicy {
 export async function listPolicies(options?: {
   status?: EntityStatus | 'all';
   userId?: number;
+  search?: string;
 }): Promise<EsgPolicy[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('p.status = ?');
       params.push(options.status);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(p.title LIKE ? OR p.category LIKE ? OR p.content LIKE ? OR p.version LIKE ? OR CAST(p.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -175,7 +183,7 @@ export async function updatePolicy(
 ): Promise<EsgPolicy | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     if (input.title !== undefined) {
       fields.push('title = ?');

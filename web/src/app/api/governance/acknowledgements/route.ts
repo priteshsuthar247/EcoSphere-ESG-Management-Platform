@@ -29,10 +29,23 @@ export async function GET(request: NextRequest) {
     const mine = searchParams.get('mine') === '1';
     const canViewAll = hasRole(user, GOV_ACK_READ_ROLES);
 
+    // Best-effort policy acknowledgement reminders (in-app + email per settings)
+    try {
+      const { sendPolicyAcknowledgementReminders } = await import(
+        '@/services/notificationService'
+      );
+      // Fire-and-forget for managers viewing coverage; also nudge current user path
+      void sendPolicyAcknowledgementReminders();
+    } catch {
+      // non-fatal
+    }
+
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+
     // Employees (or mine=1): return own acks + pending
     if (mine || !canViewAll) {
       const [items, pending] = await Promise.all([
-        listAcknowledgements({ userId: user!.id }),
+        listAcknowledgements({ userId: user!.id, search: search || undefined }),
         listPendingForUser(user!.id),
       ]);
       return successResponse(
@@ -51,7 +64,7 @@ export async function GET(request: NextRequest) {
       user!.role === 'departmental_head' ? user!.department_id : undefined;
 
     const [items, stats, coverage] = await Promise.all([
-      listAcknowledgements({ departmentId: deptFilter }),
+      listAcknowledgements({ departmentId: deptFilter, search: search || undefined }),
       getAcknowledgementStats({ departmentId: deptFilter }),
       getCoverageMatrix(),
     ]);

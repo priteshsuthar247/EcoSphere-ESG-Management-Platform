@@ -27,13 +27,18 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'all';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
     const includeMeta = searchParams.get('meta') === '1';
 
     const deptFilter =
       user!.role === 'departmental_head' ? user!.department_id : undefined;
 
     const [items, stats] = await Promise.all([
-      listEnvironmentalGoals({ departmentId: deptFilter, status }),
+      listEnvironmentalGoals({
+        departmentId: deptFilter,
+        status,
+        search: search || undefined,
+      }),
       getGoalStats({ departmentId: deptFilter }),
     ]);
 

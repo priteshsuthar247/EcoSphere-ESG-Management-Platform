@@ -3,8 +3,24 @@
 // Badges Dashboard - TerminalUI design system
 // Admin: re-evaluate unlocks. Employees: view catalog + awards.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Badge {
   id: number;
@@ -36,16 +52,15 @@ export default function BadgesDashboardPage() {
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const { draft, setSearch, apply, queryString } = useListQuery();
 
-  useEffect(() => {
-    fetchBadges();
-  }, []);
-
-  async function fetchBadges() {
+  const fetchBadges = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gamification/badges");
+      const res = await fetch(
+        `/api/gamification/badges${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -59,7 +74,11 @@ export default function BadgesDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchBadges();
+  }, [fetchBadges]);
 
   async function handleReevaluate() {
     setEvaluating(true);
@@ -84,12 +103,21 @@ export default function BadgesDashboardPage() {
     }
   }
 
+  // High-contrast tier colours (readable on light Notion surfaces)
   const badgeColors: Record<string, string> = {
-    "Bronze Badge": "#CD7F32",
-    "Silver Badge": "#C0C0C0",
-    "Gold Badge": "#FFD700",
-    "Platinum Badge": "#E5E4E2",
-    "Diamond Badge": "#B9F2FF",
+    "Bronze Badge": "#9A5B1A",
+    "Silver Badge": "#4B5563",
+    "Gold Badge": "#B45309",
+    "Platinum Badge": "#334155",
+    "Diamond Badge": "#1D4ED8",
+  };
+
+  const badgeSurfaces: Record<string, string> = {
+    "Bronze Badge": "#FEF3C7",
+    "Silver Badge": "#F1F5F9",
+    "Gold Badge": "#FEF9C3",
+    "Platinum Badge": "#E2E8F0",
+    "Diamond Badge": "#DBEAFE",
   };
 
   const badgeIcons: Record<string, string> = {
@@ -120,13 +148,27 @@ export default function BadgesDashboardPage() {
     (a, b) => pointsRequired(a.unlock_rule) - pointsRequired(b.unlock_rule),
   );
 
+    const getAwardSort = useCallback((row: AwardedBadge, key: string): unknown => {
+    switch (key) {
+      case "recipient": return row.user_name;
+      case "badge": return row.badge_name;
+      case "date": return row.awarded_at ?? "";
+      case "comment": return row.awarded_reason ?? "";
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedAwards,
+    sortKey: awardSortKey,
+    sortDir: awardSortDir,
+    toggle: awardToggle,
+  } = useTableSort(awarded, getAwardSort, "date", "desc");
+
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          {isAdmin ? "# ADMIN / GAMIFICATION / BADGES" : "# GAMIFICATION / BADGES"}
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           ACHIEVEMENT BADGES
         </h1>
@@ -142,18 +184,8 @@ export default function BadgesDashboardPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
@@ -173,7 +205,7 @@ export default function BadgesDashboardPage() {
               <button 
                 onClick={handleReevaluate} 
                 disabled={evaluating}
-                className={`btn btn-secondary btn-sm btn-cli${evaluating ? " btn-loading" : ""}`}
+                className={`btn btn-secondary btn-sm${evaluating ? " btn-loading" : ""}`}
               >
                 RE-EVALUATE BADGES
               </button>
@@ -184,6 +216,7 @@ export default function BadgesDashboardPage() {
             {orderedBadges.map((b, index) => {
               const pts = pointsRequired(b.unlock_rule);
               const borderCol = badgeColors[b.name] || "var(--color-border-medium)";
+              const surface = badgeSurfaces[b.name] || "var(--color-bg)";
               const icon = badgeIcons[b.name] || "🏆";
               const tier = index + 1;
               const isLowest = index === 0;
@@ -196,20 +229,22 @@ export default function BadgesDashboardPage() {
                     borderTop: `4px solid ${borderCol}`,
                     textAlign: "center",
                     position: "relative",
+                    background: surface,
                   }}
                 >
                   <div
                     style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10px",
-                      color: "var(--color-text-dim)",
-                      letterSpacing: "0.08em",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: borderCol,
+                      letterSpacing: "0.04em",
                       marginBottom: "var(--space-2)",
+                      textTransform: "uppercase",
                     }}
                   >
-                    TIER {tier}
-                    {isLowest ? " · LOWEST" : ""}
-                    {isHighest ? " · HIGHEST" : ""}
+                    Tier {tier}
+                    {isLowest ? " · Lowest" : ""}
+                    {isHighest ? " · Highest" : ""}
                   </div>
                   <div style={{ fontSize: "32px", marginBottom: "var(--space-2)" }}>{icon}</div>
                   <h3 style={{ fontSize: "16px", color: borderCol, marginBottom: "4px", fontWeight: 700 }}>
@@ -217,16 +252,15 @@ export default function BadgesDashboardPage() {
                   </h3>
                   <div
                     style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "12px",
-                      color: "var(--color-primary)",
-                      fontWeight: "bold",
+                      fontSize: "13px",
+                      color: borderCol,
+                      fontWeight: 700,
                       marginBottom: "var(--space-2)",
                     }}
                   >
-                    ≥ {pts.toLocaleString()} PTS
+                    ≥ {pts.toLocaleString()} pts
                   </div>
-                  <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                  <p style={{ fontSize: "12px", color: "var(--color-ink-secondary)" }}>
                     {b.description}
                   </p>
                 </div>
@@ -234,28 +268,34 @@ export default function BadgesDashboardPage() {
             })}
           </div>
 
-          {/* ── RECENT AWARDS TABLE ── */}
-          <div className="card-header">UNLOCKED ACHIEVEMENTS LEDGER</div>
+          <TableFilters
+            search={draft.search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search awards by recipient or badge…"
+            onApply={apply}
+            applying={loading}
+          />
+          <div className="card-header">Unlocked achievements ledger</div>
           
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>RECIPIENT</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>BADGE UNLOCKED</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DATE EARNED</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>VERIFICATION COMMENT</th>
+                <tr>
+                  <SortableTh label="Recipient" columnKey="recipient" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
+                  <SortableTh label="Badge unlocked" columnKey="badge" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
+                  <SortableTh label="Date earned" columnKey="date" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
+                  <SortableTh label="Verification comment" columnKey="comment" sortKey={awardSortKey} sortDir={awardSortDir} onSort={awardToggle} />
                 </tr>
               </thead>
               <tbody>
-                {awarded.length === 0 ? (
+                {sortedAwards.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                      {"// NO BADGES AWARDED TO DATE"}
+                      No badges awarded yet
                     </td>
                   </tr>
                 ) : (
-                  awarded.map((a) => (
+                  sortedAwards.map((a) => (
                     <tr key={a.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                       <td style={{ padding: "10px var(--space-3)" }}>
                         <div style={{ color: "var(--color-text-primary)" }}>{a.user_name}</div>

@@ -4,6 +4,9 @@
 import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 interface DeptStats extends RowDataPacket {
   dept_name: string | null;
@@ -50,47 +53,37 @@ export default async function DeptHeadDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>Department head</div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--color-text-primary)", marginBottom: 6 }}>
-          Department control
-        </h1>
-        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
-          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
-          {stats?.dept_name && (
-            <> Department: <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{stats.dept_name}</span></>
-          )}
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Department head"
+        title="Department control"
+        description={
+          stats?.dept_name
+            ? `Welcome, ${userName}. Department: ${stats.dept_name}`
+            : `Welcome, ${userName}.`
+        }
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <StatsGrid>
         {statCards.map((s) => (
-          <div key={s.label} className="stat-card">
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
-              {s.label}
-            </div>
-            <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.5px", color: s.color, lineHeight: 1.2 }}>
-              {s.value}
-            </div>
-          </div>
+          <StatCard key={s.label} label={s.label} value={s.value} color={s.color} />
         ))}
-      </div>
+      </StatsGrid>
 
-      <div>
-        <div className="card-header">Quick actions</div>
+      <section>
+        <SectionTitle>Quick actions</SectionTitle>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
             { label: "Review CSR Participations", href: "/dashboard/social/participation" },
-            { label: "View Environmental Goals",  href: "/dashboard/environmental/goals" },
-            { label: "Log Carbon Data",            href: "/dashboard/environmental/carbon" },
-            { label: "View Compliance Issues",     href: "/dashboard/governance/compliance" },
+            { label: "View Environmental Goals", href: "/dashboard/environmental/goals" },
+            { label: "Log Carbon Data", href: "/dashboard/environmental/carbon" },
+            { label: "View Compliance Issues", href: "/dashboard/governance/compliance" },
           ].map((a) => (
-            <a key={a.label} href={a.href} className="btn btn-secondary btn-md btn-cli">
+            <a key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
             </a>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -1,8 +1,25 @@
 "use client";
 // src/app/dashboard/settings/users/page.tsx
-// User Management interface for administrators - TerminalUI design system
+// User Management — server-side list filters + shared UI
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSessionRole } from "@/components/useSessionRole";
+import Modal from "@/components/Modal";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface UserListEntry {
   id: number;
@@ -24,30 +41,32 @@ interface Department {
 }
 
 export default function UserManagementPage() {
+  const { role: sessionRole } = useSessionRole();
+  const isCeo = sessionRole === "ceo";
   const [users, setUsers] = useState<UserListEntry[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Edit form state
+  const { draft, setSearch, setStatus, setExtra, apply, queryString } = useListQuery({
+    extras: { role: "all" },
+  });
+
   const [editingUser, setEditingUser] = useState<UserListEntry | null>(null);
   const [editRole, setEditRole] = useState("employee");
   const [editDeptId, setEditDeptId] = useState<string>("null");
   const [editStatus, setEditStatus] = useState("active");
   const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      const qs = queryString ? `?${queryString}` : "";
       const [usersRes, deptsRes] = await Promise.all([
-        fetch("/api/admin/users"),
-        fetch("/api/admin/departments")
+        fetch(`/api/admin/users${qs}`),
+        fetch("/api/admin/departments?dropdown=true"),
       ]);
 
       const usersJson = await usersRes.json();
@@ -67,7 +86,11 @@ export default function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   function handleEditClick(user: UserListEntry) {
     setEditingUser(user);
@@ -94,8 +117,8 @@ export default function UserManagementPage() {
           userId: editingUser.id,
           role: editRole,
           departmentId: editDeptId === "null" ? null : parseInt(editDeptId, 10),
-          status: editStatus
-        })
+          status: editStatus,
+        }),
       });
 
       const json = await res.json();
@@ -120,227 +143,219 @@ export default function UserManagementPage() {
     employee: "EMPLOYEE",
   };
 
+  const getUserSortValue = useCallback((u: UserListEntry, key: string) => {
+    switch (key) {
+      case "id":
+        return u.id;
+      case "name":
+        return u.name;
+      case "email":
+        return u.email;
+      case "role":
+        return u.role;
+      case "department":
+        return u.department_name ?? "";
+      case "status":
+        return u.status;
+      case "xp":
+        return u.total_xp;
+      default:
+        return "";
+    }
+  }, []);
+
+  const { sorted: sortedUsers, sortKey, sortDir, toggle } = useTableSort(
+    users,
+    getUserSortValue,
+    "id",
+  );
+
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / SETTINGS / USER-MANAGEMENT
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          USER ACCESS CONTROL
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Manage directory access, update roles, assign departments, and configure system permissions.
-        </p>
-      </div>
+      <PageHeader
+        title="User access control"
+        description="Manage directory access, update roles, assign departments, and configure system permissions."
+      />
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
-        <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-          <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            RETRIEVING ACCESS CONTROL LISTINGS...
-          </span>
-        </div>
+        <LoadingState label="Loading users…" />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: editingUser ? "1fr 340px" : "1fr", gap: "var(--space-6)" }}>
-          {/* ── USER DIRECTORY LISTING ── */}
-          <div>
-            <div className="card-header">USER DIRECTORY FILE</div>
-            
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>NAME</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EMAIL</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ROLE</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DEPARTMENT</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                    <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>XP / PTS</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTION</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr 
-                      key={u.id} 
-                      style={{ 
-                        borderBottom: "1px solid var(--color-border-subtle)", 
-                        background: editingUser?.id === u.id ? "rgba(0, 255, 65, 0.04)" : "transparent"
-                      }}
-                    >
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(u.id).padStart(3, "0")}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{u.name}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{u.email}</td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
-                        <span className={`chip ${u.role === "admin" ? "chip-red" : u.role === "ceo" ? "chip-amber" : u.role === "departmental_head" ? "chip-cyan" : "chip-muted"}`}>
+        <>
+          <TableFilters
+            search={draft.search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search name or email…"
+            status={draft.status}
+            onStatusChange={setStatus}
+            statusOptions={[
+              { value: "all", label: "All statuses" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+              { value: "archived", label: "Archived" },
+            ]}
+            extraFields={
+              <div className="table-filter-field">
+                <label className="form-label">Role</label>
+                <select
+                  className="form-input"
+                  value={draft.extras?.role ?? "all"}
+                  onChange={(e) => setExtra("role", e.target.value)}
+                >
+                  <option value="all">All roles</option>
+                  {!isCeo && <option value="admin">Admin</option>}
+                  <option value="ceo">CEO</option>
+                  <option value="departmental_head">Dept head</option>
+                  <option value="employee">Employee</option>
+                </select>
+              </div>
+            }
+            onApply={apply}
+            applying={loading}
+          />
+
+          <SectionTitle>User directory</SectionTitle>
+          <DataTableWrap>
+            <DataTable>
+              <thead>
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Email" columnKey="email" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Role" columnKey="role" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Department" columnKey="department" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="XP / Pts" columnKey="xp" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                  <ActionTh />
+                </tr>
+              </thead>
+              <tbody>
+                {sortedUsers.length === 0 ? (
+                  <DataTableEmptyRow colSpan={8} message="No users found." />
+                ) : (
+                  sortedUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td className="col-id">{String(u.id).padStart(3, "0")}</td>
+                      <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{u.name}</td>
+                      <td style={{ color: "var(--color-text-muted)" }}>{u.email}</td>
+                      <td>
+                        <span
+                          className={`chip ${
+                            u.role === "admin"
+                              ? "chip-red"
+                              : u.role === "ceo"
+                                ? "chip-amber"
+                                : u.role === "departmental_head"
+                                  ? "chip-cyan"
+                                  : "chip-muted"
+                          }`}
+                        >
                           {roleLabels[u.role] ?? u.role}
                         </span>
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", color: u.department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
-                        {u.department_name ? `> ${u.department_name}` : "// NONE"}
+                      <td
+                        style={{
+                          color: u.department_name
+                            ? "var(--color-text-primary)"
+                            : "var(--color-text-dim)",
+                        }}
+                      >
+                        {u.department_name || "—"}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
-                        <span className={`chip ${u.status === "active" ? "chip-green" : "chip-muted"}`}>
-                          {u.status}
-                        </span>
+                      <td>
+                        <StatusChip status={u.status} />
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", textAlign: "right", color: "var(--color-text-primary)" }}>
+                      <td style={{ textAlign: "right", color: "var(--color-text-primary)" }}>
                         {u.total_xp} / {u.esg_points_balance}
                       </td>
-                      <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                        <button 
-                          onClick={() => handleEditClick(u)} 
+                      <td style={{ textAlign: "center" }}>
+                        <button
+                          onClick={() => handleEditClick(u)}
                           className="btn btn-secondary btn-sm"
                         >
-                          $ edit
+                          Edit
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                  ))
+                )}
+              </tbody>
+            </DataTable>
+          </DataTableWrap>
 
-          {/* ── ACCESS CONFIGURATION PANEL (EDIT DRAWER) ── */}
-          {editingUser && (
-            <div className="card-elevated" style={{ height: "fit-content" }}>
-              <div className="card-header">CONFIGURE ACCESS: {editingUser.name}</div>
-              
-              <form onSubmit={handleUpdateSubmit}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  
-                  {/* Role config */}
-                  <div className="form-group">
-                    <label className="form-label">ASSIGNED ROLE</label>
-                    <div style={{ position: "relative" }}>
-                      <select 
-                        value={editRole}
-                        onChange={(e) => setEditRole(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                      >
-                        <option value="admin">ADMIN</option>
-                        <option value="ceo">CEO</option>
-                        <option value="departmental_head">DEPT HEAD</option>
-                        <option value="employee">EMPLOYEE</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Department config */}
-                  <div className="form-group">
-                    <label className="form-label">DEPARTMENT ASSOCIATION</label>
-                    <div>
-                      <select 
-                        value={editDeptId}
-                        onChange={(e) => setEditDeptId(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                      >
-                        <option value="null">{"// NO DEPARTMENT ASSIGNED"}</option>
-                        {departments.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            &gt; {d.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Status config */}
-                  <div className="form-group">
-                    <label className="form-label">ACCOUNT STATUS</label>
-                    <div>
-                      <select 
-                        value={editStatus}
-                        onChange={(e) => setEditStatus(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                      >
-                        <option value="active">ACTIVE</option>
-                        <option value="inactive">INACTIVE</option>
-                        <option value="archived">ARCHIVED</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div 
-                    className="ascii-divider" 
-                    style={{ color: "var(--color-border-subtle)", margin: "var(--space-2) 0" }}
+          <Modal
+            open={Boolean(editingUser)}
+            title={editingUser ? `Configure access: ${editingUser.name}` : "Configure access"}
+            onClose={() => setEditingUser(null)}
+            width={480}
+          >
+            <form onSubmit={handleUpdateSubmit}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+                <div className="form-group">
+                  <label className="form-label required">Assigned role</label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value)}
+                    className="form-input"
                   >
-                    {"─".repeat(24)}
-                  </div>
-
-                  {/* Action buttons */}
-                  <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                    <button 
-                      type="submit" 
-                      disabled={updating}
-                      className={`btn btn-primary btn-md btn-cli btn-full${updating ? " btn-loading" : ""}`}
-                    >
-                      {updating ? "UPDATING" : "COMMIT"}
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setEditingUser(null)}
-                      className="btn btn-ghost btn-md btn-full"
-                    >
-                      CANCEL
-                    </button>
-                  </div>
+                    {!isCeo && <option value="admin">Admin</option>}
+                    <option value="ceo">CEO</option>
+                    <option value="departmental_head">Dept head</option>
+                    <option value="employee">Employee</option>
+                  </select>
                 </div>
-              </form>
-            </div>
-          )}
-        </div>
+
+                <div className="form-group">
+                  <label className="form-label">Department association</label>
+                  <select
+                    value={editDeptId}
+                    onChange={(e) => setEditDeptId(e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="null">No department</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Account status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className={`btn btn-primary btn-md btn-full${updating ? " btn-loading" : ""}`}
+                  >
+                    {updating ? "Saving…" : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="btn btn-ghost btn-md btn-full"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          </Modal>
+        </>
       )}
     </div>
   );

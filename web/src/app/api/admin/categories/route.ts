@@ -36,12 +36,33 @@ export async function GET(request: NextRequest) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || !['admin', 'ceo', 'departmental_head'].includes(payload.role)) {
+    // Categories management is full-access only
+    if (!payload || !['admin', 'ceo'].includes(payload.role)) {
       return errorResponse('Access denied. Insufficient privileges.', 403, 'FORBIDDEN');
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const status = (searchParams.get('status') || 'all').trim() || 'all';
+
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
+    if (status && status !== 'all') {
+      clauses.push('status = ?');
+      params.push(status);
+    }
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(name LIKE ? OR type LIKE ? OR description LIKE ? OR CAST(id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
     const [rows] = await pool.execute<CategoryEntry[]>(
-      'SELECT id, name, type, description, status, created_at FROM categories ORDER BY id ASC'
+      `SELECT id, name, type, description, status, created_at FROM categories ${where} ORDER BY id ASC`,
+      params,
     );
 
     return successResponse(rows, 'Categories retrieved successfully');

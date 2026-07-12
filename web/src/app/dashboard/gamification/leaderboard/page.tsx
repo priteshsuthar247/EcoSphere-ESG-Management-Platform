@@ -2,7 +2,23 @@
 // src/app/dashboard/gamification/leaderboard/page.tsx
 // Leaderboard Dashboard - TerminalUI design system
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface EmployeeRank {
   id: number;
@@ -31,6 +47,7 @@ export default function LeaderboardPage() {
   
   // Standings view toggle: 'individual' | 'departmental'
   const [viewMode, setViewMode] = useState<"individual" | "departmental">("individual");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
   useEffect(() => {
     fetchLeaderboard();
@@ -40,7 +57,7 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gamification/leaderboard");
+      const res = await fetch(`/api/gamification/leaderboard${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -56,13 +73,45 @@ export default function LeaderboardPage() {
     }
   }
 
+      const getEmployeeSort = useCallback((row: EmployeeRank, key: string): unknown => {
+    switch (key) {
+      case "employee": return row.name;
+      case "department": return row.department_name ?? "";
+      case "points": return row.esg_points_balance;
+      case "total_xp": return row.total_xp;
+      default: return null;
+    }
+  }, []);
+
+  const getDeptSort = useCallback((row: DepartmentRank, key: string): unknown => {
+    switch (key) {
+      case "department": return row.name;
+      case "env": return Number(row.environmental_score);
+      case "soc": return Number(row.social_score);
+      case "gov": return Number(row.governance_score);
+      case "total_score": return Number(row.total_score);
+      default: return null;
+    }
+  }, []);
+
+  const {
+    sorted: sortedEmployees,
+    sortKey: empSortKey,
+    sortDir: empSortDir,
+    toggle: empToggle,
+  } = useTableSort(employees, getEmployeeSort, "total_xp", "desc");
+
+  const {
+    sorted: sortedDepartments,
+    sortKey: deptSortKey,
+    sortDir: deptSortDir,
+    toggle: deptToggle,
+  } = useTableSort(departments, getDeptSort, "total_score", "desc");
+
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / GAMIFICATION / LEADERBOARD
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           ORGANIZATIONAL STANDINGS
         </h1>
@@ -75,67 +124,70 @@ export default function LeaderboardPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
 
-      {/* Standings mode selector toggles */}
-      <div style={{ display: "flex", gap: "var(--space-3)", marginBottom: "var(--space-6)" }}>
+      <div style={{ display: "flex", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
         <button
+          type="button"
           onClick={() => setViewMode("individual")}
-          className={`chip ${viewMode === "individual" ? "active" : "chip-muted"}`}
+          className={`chip ${viewMode === "individual" ? "chip-green" : "chip-muted"}`}
           style={{ cursor: "pointer", padding: "8px 16px", fontSize: "12px", fontWeight: "bold" }}
         >
-          [INDIVIDUAL STANDINGS]
+          Individual standings
         </button>
         <button
+          type="button"
           onClick={() => setViewMode("departmental")}
-          className={`chip ${viewMode === "departmental" ? "active" : "chip-muted"}`}
+          className={`chip ${viewMode === "departmental" ? "chip-green" : "chip-muted"}`}
           style={{ cursor: "pointer", padding: "8px 16px", fontSize: "12px", fontWeight: "bold" }}
         >
-          [DEPARTMENTAL ESG STANDINGS]
+          Departmental ESG standings
         </button>
       </div>
+
+      <TableFilters
+        search={draft.search}
+        onSearchChange={setSearch}
+        searchPlaceholder={viewMode === "individual" ? "Search employees, department…" : "Search departments…"}
+            onApply={apply}
+            applying={loading}
+      />
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            RETRIEVING LEADERBOARD DIRECTORIES...
+          <span style={{ marginLeft: "var(--space-3)" }}>
+            Loading leaderboard…
           </span>
         </div>
       ) : (
         <div>
           {viewMode === "individual" ? (
-            /* ── INDIVIDUAL LEADERBOARD ── */
             <div>
-              <div className="card-header">INDIVIDUAL ACTIVE STANDINGS</div>
+              <div className="card-header">Individual active standings</div>
               
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", width: "70px" }}>RANK</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EMPLOYEE</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DEPARTMENT</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ESG POINTS BALANCE</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>TOTAL EXPERIENCE</th>
+                    <tr>
+                      <th className="sortable-th" style={{ textAlign: "left", cursor: "default", width: "70px" }}>Rank</th>
+                      <SortableTh label="Employee" columnKey="employee" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} />
+                      <SortableTh label="Department" columnKey="department" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} />
+                      <SortableTh label="ESG points" columnKey="points" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} align="right" />
+                      <SortableTh label="Total XP" columnKey="total_xp" sortKey={empSortKey} sortDir={empSortDir} onSort={empToggle} align="right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.length === 0 ? (
+                    {sortedEmployees.length === 0 ? (
                       <tr>
                         <td colSpan={5} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                          {"// NO EMPLOYEE RECORDS COMMITTED IN SYSTEM DATABASE"}
+                          No employee records found.
                         </td>
                       </tr>
                     ) : (
-                      employees.map((e, index) => {
+                      sortedEmployees.map((e, index) => {
                         const rank = index + 1;
-                        let rankText = `#${rank}`;
+                        let rankText = String(rank);
                         let rowBg = "transparent";
                         let nameColor = "var(--color-text-primary)";
                         
@@ -171,7 +223,7 @@ export default function LeaderboardPage() {
                               </div>
                             </td>
                             <td style={{ padding: "10px var(--space-3)", color: e.department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
-                              {e.department_name ? `> ${e.department_name}` : "// NONE"}
+                              {e.department_name ? `${e.department_name}` : "None"}
                             </td>
                             <td style={{ padding: "10px var(--space-3)", textAlign: "right", color: "var(--color-secondary)" }}>
                               {e.esg_points_balance} pts
@@ -188,33 +240,32 @@ export default function LeaderboardPage() {
               </div>
             </div>
           ) : (
-            /* ── DEPARTMENTAL LEADERBOARD ── */
             <div>
-              <div className="card-header">DEPARTMENTAL ESG SCORES STANDINGS</div>
+              <div className="card-header">Departmental ESG scores standings</div>
               
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+              <div className="data-table-wrap">
+                <table className="data-table">
                   <thead>
-                    <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", width: "70px" }}>RANK</th>
-                      <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DEPARTMENT</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ENV SCORE</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>SOC SCORE</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>GOV SCORE</th>
-                      <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>TOTAL ESG SCORE</th>
+                    <tr>
+                      <th className="sortable-th" style={{ textAlign: "left", cursor: "default", width: "70px" }}>Rank</th>
+                      <SortableTh label="Department" columnKey="department" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} />
+                      <SortableTh label="Env score" columnKey="env" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
+                      <SortableTh label="Soc score" columnKey="soc" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
+                      <SortableTh label="Gov score" columnKey="gov" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
+                      <SortableTh label="Total ESG" columnKey="total_score" sortKey={deptSortKey} sortDir={deptSortDir} onSort={deptToggle} align="right" />
                     </tr>
                   </thead>
                   <tbody>
-                    {departments.length === 0 ? (
+                    {sortedDepartments.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                          {"// NO DEPARTMENTAL SCORES CALCULATED YET"}
+                          No departmental scores calculated yet.
                         </td>
                       </tr>
                     ) : (
-                      departments.map((d, index) => {
+                      sortedDepartments.map((d, index) => {
                         const rank = index + 1;
-                        let rankText = `#${rank}`;
+                        let rankText = String(rank);
                         let rowBg = "transparent";
                         
                         if (rank === 1) {

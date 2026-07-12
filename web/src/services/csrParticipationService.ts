@@ -47,6 +47,7 @@ export async function listParticipations(options?: {
   departmentId?: number | null;
   approvalStatus?: ApprovalStatus | 'all';
   activityId?: number;
+  search?: string;
 }): Promise<CsrParticipation[]> {
   try {
     const clauses: string[] = [];
@@ -68,6 +69,14 @@ export async function listParticipations(options?: {
     if (options?.activityId !== undefined) {
       clauses.push('p.csr_activity_id = ?');
       params.push(options.activityId);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(u.name LIKE ? OR u.email LIKE ? OR a.title LIKE ? OR d.name LIKE ?
+          OR p.rejection_reason LIKE ? OR CAST(p.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -113,7 +122,8 @@ export async function joinCsrActivity(params: {
   const { userId, activityId } = params;
   const activity = await getCsrActivityById(activityId);
   if (!activity) throw new Error('ACTIVITY_NOT_FOUND');
-  if (['cancelled', 'archived'].includes(activity.status)) {
+  // Completed / cancelled / archived activities are closed for new joiners
+  if (['cancelled', 'archived', 'completed'].includes(activity.status)) {
     throw new Error('ACTIVITY_NOT_JOINABLE');
   }
 
@@ -234,11 +244,13 @@ export async function reviewParticipation(params: {
   if (existing.approval_status === 'approved') throw new Error('ALREADY_APPROVED');
 
   if (params.decision === 'approved') {
-    if (
-      existing.evidence_required &&
-      !existing.proof_attachment_id &&
-      !params.forceWithoutProof
-    ) {
+    // Activity-level evidence OR global Settings → require CSR evidence
+    const { getEsgConfig } = await import('@/services/systemConfig');
+    const esg = await getEsgConfig();
+    const proofRequired =
+      Boolean(existing.evidence_required) || esg.requireCsrEvidence;
+
+    if (proofRequired && !existing.proof_attachment_id && !params.forceWithoutProof) {
       throw new Error('PROOF_REQUIRED');
     }
 
@@ -302,6 +314,29 @@ export async function reviewParticipation(params: {
     logger.info('CSR participation rejected', {
       participationId: params.participationId,
     });
+  }
+
+  // In-app (+ optional email) decision notification
+  try {
+    const { notifyUser } = await import('@/services/notificationService');
+    const decision = params.decision;
+    await notifyUser({
+      userId: existing.user_id,
+      type: 'csr_approval_decision',
+      title: `CSR activity ${decision}`,
+      message:
+        decision === 'approved'
+          ? `Your CSR participation was approved. Points have been added to your balance.`
+          : `Your CSR participation was rejected${
+              params.rejection_reason ? `: ${params.rejection_reason}` : '.'
+            }`,
+      actionUrl: '/dashboard/social/participation',
+      relatedEntityType: 'csr_participation',
+      relatedEntityId: params.participationId,
+      emailSubject: `CSR participation ${decision}`,
+    });
+  } catch {
+    // non-fatal
   }
 
   const updated = await getParticipationById(params.participationId);

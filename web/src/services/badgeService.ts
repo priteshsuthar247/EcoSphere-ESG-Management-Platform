@@ -5,12 +5,12 @@
 import pool from '@/config/db';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 import logger from '@/lib/logger';
-import { sendMail } from '@/lib/email';
 
 interface UserPointsRow extends RowDataPacket {
   name: string;
   email: string;
   esg_points_balance: number | string;
+  total_xp?: number | string;
 }
 
 interface BadgeRow extends RowDataPacket {
@@ -19,7 +19,11 @@ interface BadgeRow extends RowDataPacket {
   unlock_rule: { points_required?: number } | string;
 }
 
-function parseUnlockRule(raw: BadgeRow['unlock_rule']): { points_required?: number } {
+function parseUnlockRule(raw: BadgeRow['unlock_rule']): {
+  points_required?: number;
+  completed_challenges?: number;
+  min_xp?: number;
+} {
   if (!raw) return {};
   if (typeof raw === 'string') {
     try {
@@ -28,29 +32,54 @@ function parseUnlockRule(raw: BadgeRow['unlock_rule']): { points_required?: numb
       return {};
     }
   }
-  return raw;
+  return raw as {
+    points_required?: number;
+    completed_challenges?: number;
+    min_xp?: number;
+  };
 }
 
 /**
  * Award every active badge whose points_required the user currently meets.
  * Safe to call repeatedly (INSERT IGNORE / already-owned check).
  * Returns number of newly awarded badges.
+ * Respects Settings → ESG Configuration → Auto-award badges (unless force=true).
  */
-export async function awardEligibleBadges(userId: number): Promise<number> {
+export async function awardEligibleBadges(
+  userId: number,
+  options?: { force?: boolean },
+): Promise<number> {
   try {
+    if (!options?.force) {
+      const { getEsgConfig } = await import('@/services/systemConfig');
+      const esg = await getEsgConfig();
+      if (!esg.autoAwardBadges) {
+        logger.info('Badge auto-award skipped (disabled in ESG config)', { userId });
+        return 0;
+      }
+    }
+
     const [userRows] = await pool.execute<UserPointsRow[]>(
-      'SELECT name, email, esg_points_balance FROM users WHERE id = ? AND status = ? LIMIT 1',
+      'SELECT name, email, esg_points_balance, total_xp FROM users WHERE id = ? AND status = ? LIMIT 1',
       [userId, 'active'],
     );
-    const user = userRows[0];
+    const user = userRows[0] as UserPointsRow & { total_xp?: number | string };
     if (!user) return 0;
 
     // MySQL DECIMAL can arrive as string — always coerce
     const balance = Number(user.esg_points_balance);
+    const totalXp = Number(user.total_xp ?? 0);
     if (!Number.isFinite(balance)) {
       logger.warn('awardEligibleBadges: invalid points balance', { userId, raw: user.esg_points_balance });
       return 0;
     }
+
+    const [completedRows] = await pool.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS cnt FROM challenge_participations
+       WHERE user_id = ? AND approval_status = 'approved'`,
+      [userId],
+    );
+    const completedChallenges = Number(completedRows[0]?.cnt ?? 0);
 
     const [badges] = await pool.execute<BadgeRow[]>(
       `SELECT id, name, unlock_rule FROM badges WHERE status = 'active' ORDER BY id ASC`,
@@ -69,9 +98,25 @@ export async function awardEligibleBadges(userId: number): Promise<number> {
 
       const rule = parseUnlockRule(badge.unlock_rule);
       const pointsRequired = Number(rule.points_required);
-      if (!Number.isFinite(pointsRequired) || pointsRequired < 0) continue;
+      const challengesRequired = Number(rule.completed_challenges);
+      const minXp = Number(rule.min_xp);
 
-      if (balance < pointsRequired) continue;
+      // Every threshold present in the unlock rule must be met (AND)
+      let hasRule = false;
+      let qualifies = true;
+      if (Number.isFinite(pointsRequired) && pointsRequired >= 0) {
+        hasRule = true;
+        qualifies = qualifies && balance >= pointsRequired;
+      }
+      if (Number.isFinite(challengesRequired) && challengesRequired > 0) {
+        hasRule = true;
+        qualifies = qualifies && completedChallenges >= challengesRequired;
+      }
+      if (Number.isFinite(minXp) && minXp > 0) {
+        hasRule = true;
+        qualifies = qualifies && totalXp >= minXp;
+      }
+      if (!hasRule || !qualifies) continue;
 
       const [result] = await pool.execute<ResultSetHeader>(
         `INSERT IGNORE INTO user_badges (user_id, badge_id, awarded_reason)
@@ -79,7 +124,7 @@ export async function awardEligibleBadges(userId: number): Promise<number> {
         [
           userId,
           badge.id,
-          `Unlocked by achieving an ESG points balance of ${balance} (Requirement: ${pointsRequired}).`,
+          `Unlocked (points=${balance}, challenges=${completedChallenges}, xp=${totalXp}). Rule: ${JSON.stringify(rule)}.`,
         ],
       );
 
@@ -96,52 +141,24 @@ export async function awardEligibleBadges(userId: number): Promise<number> {
         pointsRequired,
       });
 
-      await pool.execute(
-        `INSERT INTO notifications (user_id, type, title, message)
-         VALUES (?, 'badge_unlocked', ?, ?)`,
-        [
-          userId,
-          'Badge Unlocked!',
-          `Congratulations! You have unlocked the ${badge.name}.`,
-        ],
-      );
-
-      // Optional email (best-effort)
-      try {
-        const [settingsRows] = await pool.execute<RowDataPacket[]>(
-          'SELECT value FROM system_settings WHERE `key` = ? LIMIT 1',
-          ['notification_config'],
-        );
-        const config = settingsRows[0]?.value as
-          | { emailAlertsChallenges?: boolean; autoAwardBadges?: boolean }
-          | undefined;
-
-        // Respect auto-award / email toggles when present (default: send)
-        if (config?.emailAlertsChallenges === false) continue;
-
-        const htmlContent = `
-          <div style="font-family: monospace; background-color: #0d0d0d; color: #00ff41; padding: 24px; border: 1px solid #444444;">
-            <h2 style="color: #00ff41;">[ECOSPHERE ACHIEVEMENT SYSTEM]</h2>
-            <p style="color: #8b8b8b;">// Badge Achievement Unlocked</p>
-            <div style="border: 1px solid #00ff41; padding: 16px; margin: 16px 0; background: rgba(0,255,65,0.03);">
-              ACHIEVEMENT: ${badge.name}<br>
-              RECIPIENT: ${user.name}<br>
-              POINTS HELD: ${balance}
-            </div>
-            <p style="color: #f1f5f9;">You reached the required points threshold and unlocked this achievement!</p>
-          </div>
-        `;
-
-        sendMail({
-          to: user.email,
-          subject: `Achievement Unlocked: ${badge.name}!`,
-          html: htmlContent,
-        }).catch((mailErr: Error) => {
-          logger.error('Failed to send badge unlock email', { error: mailErr.message });
-        });
-      } catch {
-        // non-fatal
-      }
+      const { notifyUser } = await import('@/services/notificationService');
+      const { escapeHtml } = await import('@/lib/htmlEscape');
+      await notifyUser({
+        userId,
+        type: 'badge_unlocked',
+        title: 'Badge Unlocked!',
+        message: `Congratulations! You have unlocked the ${badge.name}.`,
+        actionUrl: '/dashboard/gamification/badges',
+        relatedEntityType: 'badge',
+        relatedEntityId: Number(badge.id),
+        emailSubject: `Achievement Unlocked: ${badge.name}!`,
+        emailHtml: `
+          <div style="font-family:sans-serif;padding:16px">
+            <h2>Badge unlocked</h2>
+            <p>Hi ${escapeHtml(user.name)}, you unlocked <strong>${escapeHtml(badge.name)}</strong>
+            with ${escapeHtml(balance)} ESG points.</p>
+          </div>`,
+      });
     }
 
     return newlyAwarded;
@@ -164,7 +181,8 @@ export async function reevaluateAllBadges(): Promise<number> {
 
   let total = 0;
   for (const user of users) {
-    total += await awardEligibleBadges(Number(user.id));
+    // Admin re-eval runs even when auto-award toggle is off
+    total += await awardEligibleBadges(Number(user.id), { force: true });
   }
   logger.info('Completed system-wide badge re-evaluation', { awardedCount: total });
   return total;

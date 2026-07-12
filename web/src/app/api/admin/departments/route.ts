@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const dropdown = url.searchParams.get('dropdown') === 'true';
+    const search = (url.searchParams.get('search') || url.searchParams.get('q') || '').trim();
+    const status = (url.searchParams.get('status') || 'all').trim() || 'all';
 
     if (dropdown) {
       const [rows] = await pool.execute<RowDataPacket[]>(
@@ -56,8 +58,25 @@ export async function GET(request: NextRequest) {
       return successResponse(rows, 'Departments retrieved successfully');
     }
 
-    // Detailed view with joins
-    const [rows] = await pool.execute<DepartmentDetailEntry[]>(`
+    // Detailed view with joins + optional search/status filters
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
+    if (status && status !== 'all') {
+      clauses.push('d.status = ?');
+      params.push(status);
+    }
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(d.name LIKE ? OR d.code LIKE ? OR d.location LIKE ? OR d.description LIKE ?
+          OR u.name LIKE ? OR p.name LIKE ? OR CAST(d.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q, q);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+    const [rows] = await pool.execute<DepartmentDetailEntry[]>(
+      `
       SELECT 
         d.id, 
         d.name, 
@@ -73,8 +92,11 @@ export async function GET(request: NextRequest) {
       FROM departments d
       LEFT JOIN users u ON u.id = d.head_user_id
       LEFT JOIN departments p ON p.id = d.parent_department_id
+      ${where}
       ORDER BY d.id ASC
-    `);
+    `,
+      params,
+    );
 
     return successResponse(rows, 'Detailed departments retrieved successfully');
   } catch (err) {

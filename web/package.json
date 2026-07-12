@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:api": "node scripts/seed-and-test-api.mjs",
-    "test:api:verify": "node scripts/seed-and-test-api.mjs --verify-only"
+    "test:api:verify": "node scripts/seed-and-test-api.mjs --verify-only",
+    "seed:rich": "node scripts/seed-rich-demo.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -2,8 +2,24 @@
 // src/app/dashboard/gamification/participation/page.tsx
 // Challenge Participation approvals - managers only (employees redirected by middleware)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Participation {
   id: number;
@@ -27,16 +43,13 @@ export default function ChallengeParticipationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
-  useEffect(() => {
-    fetchParticipations();
-  }, []);
-
-  async function fetchParticipations() {
+  const fetchParticipations = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gamification/participation");
+      const res = await fetch(`/api/gamification/participation${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -49,7 +62,11 @@ export default function ChallengeParticipationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchParticipations();
+  }, [fetchParticipations]);
 
   async function handleReview(id: number, status: "approved" | "rejected") {
     setProcessingId(id);
@@ -77,13 +94,25 @@ export default function ChallengeParticipationPage() {
     }
   }
 
+    const getSortValue = useCallback((row: Participation, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "employee": return row.user_name;
+      case "challenge": return row.challenge_title;
+      case "reward": return row.xp_reward;
+      case "progress": return row.progress_percent;
+      case "date": return row.joined_at ?? "";
+      case "status": return row.approval_status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(participations, getSortValue, "id");
+
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / GAMIFICATION / PARTICIPATION
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           CHALLENGE VERIFICATIONS
         </h1>
@@ -96,53 +125,60 @@ export default function ChallengeParticipationPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            RETRIEVING AUDIT VERIFICATIONS LEDGER...
+          <span style={{ marginLeft: "var(--space-3)" }}>
+            Loading verifications…
           </span>
         </div>
       ) : (
         <div>
-          <div className="card-header">PARTICIPATION VERIFICATION RECORDS</div>
+          <TableFilters
+            search={draft.search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search employee, challenge…"
+            status={draft.status}
+            onStatusChange={setStatus}
+            statusOptions={[
+              { value: "all", label: "All statuses" },
+              { value: "pending", label: "Pending" },
+              { value: "approved", label: "Approved" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+          onApply={apply}
+
+          applying={loading}
+
+          />
+          <div className="card-header">Participation verification records</div>
           
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+          <div className="data-table-wrap">
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EMPLOYEE</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>CHALLENGE</th>
-                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>REWARD</th>
-                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>PROGRESS</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>SUBMIT DATE</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                  <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTIONS</th>
+                <tr>
+                  <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Employee" columnKey="employee" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Challenge" columnKey="challenge" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Reward" columnKey="reward" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                  <SortableTh label="Progress" columnKey="progress" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
+                  <SortableTh label="Submit date" columnKey="date" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {participations.length === 0 ? (
+                {sorted.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                      {"// NO PARTICIPATIONS LOGGED FOR REVIEW"}
+                      No participations logged for review.
                     </td>
                   </tr>
                 ) : (
-                  participations.map((p) => (
+                  sorted.map((p) => (
                     <tr 
                       key={p.id} 
                       style={{ 
@@ -166,7 +202,7 @@ export default function ChallengeParticipationPage() {
                       <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{p.joined_at ? p.joined_at.split("T")[0] : "–"}</td>
                       <td style={{ padding: "10px var(--space-3)" }}>
                         <span className={`chip ${p.approval_status === "approved" ? "chip-green" : p.approval_status === "pending" ? "chip-cyan" : "chip-red"}`}>
-                          {p.approval_status.toUpperCase()}
+                          {p.approval_status}
                         </span>
                       </td>
                       <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
@@ -175,18 +211,20 @@ export default function ChallengeParticipationPage() {
                         ) : p.approval_status === "pending" ? (
                           <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "center" }}>
                             <button
+                              type="button"
                               onClick={() => handleReview(p.id, "approved")}
                               disabled={processingId !== null}
                               className="btn btn-primary btn-sm"
                             >
-                              [✔] APPROVE
+                              Approve
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleReview(p.id, "rejected")}
                               disabled={processingId !== null}
                               className="btn btn-danger btn-sm"
                             >
-                              [✘] REJECT
+                              Reject
                             </button>
                           </div>
                         ) : (

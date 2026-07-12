@@ -65,10 +65,11 @@ function normalize(row: Audit): Audit {
 export async function listAudits(options?: {
   status?: AuditStatus | 'all';
   departmentId?: number | null;
+  search?: string;
 }): Promise<Audit[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('a.status = ?');
@@ -77,6 +78,15 @@ export async function listAudits(options?: {
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('a.department_id = ?');
       params.push(options.departmentId);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(a.title LIKE ? OR a.audit_type LIKE ? OR a.findings_summary LIKE ?
+          OR a.external_auditor LIKE ? OR d.name LIKE ? OR au.name LIKE ?
+          OR CAST(a.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -159,7 +169,7 @@ export async function updateAudit(
 ): Promise<Audit | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     const map: Array<[keyof UpdateAuditInput, string, boolean]> = [
       ['title', 'title', true],

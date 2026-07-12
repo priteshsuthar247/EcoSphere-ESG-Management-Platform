@@ -49,10 +49,11 @@ export interface UpdateEmissionFactorInput {
 export async function listEmissionFactors(options?: {
   status?: EntityStatus | 'all';
   scope?: EmissionScope;
+  search?: string;
 }): Promise<EmissionFactor[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('status = ?');
@@ -61,6 +62,13 @@ export async function listEmissionFactors(options?: {
     if (options?.scope) {
       clauses.push('scope = ?');
       params.push(options.scope);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(name LIKE ? OR category LIKE ? OR unit LIKE ? OR source LIKE ? OR CAST(id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -131,7 +139,7 @@ export async function updateEmissionFactor(
 ): Promise<EmissionFactor | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     const map: Array<[keyof UpdateEmissionFactorInput, string]> = [
       ['name', 'name'],

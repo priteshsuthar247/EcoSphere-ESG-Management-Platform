@@ -20,10 +20,11 @@ export interface Category extends RowDataPacket {
 export async function listCategories(options?: {
   type?: CategoryType;
   status?: EntityStatus | 'all';
+  search?: string;
 }): Promise<Category[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.type) {
       clauses.push('type = ?');
@@ -32,6 +33,13 @@ export async function listCategories(options?: {
     if (options?.status && options.status !== 'all') {
       clauses.push('status = ?');
       params.push(options.status);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(name LIKE ? OR type LIKE ? OR description LIKE ? OR CAST(id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

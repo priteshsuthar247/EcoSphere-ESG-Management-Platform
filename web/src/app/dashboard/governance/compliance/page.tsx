@@ -2,6 +2,21 @@
 // Compliance Issues — TerminalUI
 
 import { useCallback, useEffect, useState } from "react";
+import Modal from "@/components/Modal";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface Issue {
   id: number;
@@ -50,7 +65,7 @@ export default function ComplianceIssuesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -60,7 +75,9 @@ export default function ComplianceIssuesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/governance/compliance?meta=1&status=${statusFilter}`);
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
+      const res = await fetch(`/api/governance/compliance?${params}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load compliance issues");
       setItems(json.data.items);
@@ -73,7 +90,7 @@ export default function ComplianceIssuesPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -136,17 +153,6 @@ export default function ComplianceIssuesPage() {
     }
   }
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "8px 12px",
-    background: "var(--color-bg)",
-    border: "1px solid var(--color-border-medium)",
-    color: "var(--color-primary)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "14px",
-    outline: "none",
-    borderRadius: "0px",
-  };
 
   function severityChip(s: string) {
     if (s === "critical") return "chip-red";
@@ -190,177 +196,177 @@ export default function ComplianceIssuesPage() {
           { label: "CRITICAL", value: stats?.critical, color: "var(--color-error)" },
         ].map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// {s.label}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{s.label}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
           </div>
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span><span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-4)", alignItems: "center" }}>
-        <button type="button" className="btn btn-primary btn-md btn-cli" onClick={openCreate}>NEW ISSUE</button>
-        {["all", "open", "in_progress", "overdue", "resolved"].map((s) => (
-          <button key={s} type="button" className={`chip ${statusFilter === s ? "chip-green" : "chip-muted"}`} onClick={() => setStatusFilter(s)} style={{ cursor: "pointer" }}>{s}</button>
-        ))}
-      </div>
+      <TableFilters
+        search={draft.search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search issues, owner, department…"
+        status={draft.status}
+        onStatusChange={setStatus}
+        statusOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "open", label: "Open" },
+          { value: "in_progress", label: "In progress" },
+          { value: "overdue", label: "Overdue" },
+          { value: "resolved", label: "Resolved" },
+        ]}
+            
+      onApply={apply}
 
-      <div style={{ display: "grid", gridTemplateColumns: showForm ? "1fr minmax(300px, 380px)" : "1fr", gap: "var(--space-6)" }}>
-        <div>
-          <div className="card-header">ISSUE REGISTRY</div>
-          {loading ? (
-            <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-              <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING ISSUES...</span>
-            </div>
-          ) : items.length === 0 ? (
-            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No compliance issues found.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {items.map((issue) => (
-                <div key={issue.id} style={{ border: "1px solid var(--color-border-subtle)", padding: "var(--space-4)", background: issue.flagged_overdue ? "rgba(255, 0, 64, 0.04)" : "var(--color-surface)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
-                    <div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)" }}>
-                        #{String(issue.id).padStart(3, "0")}
-                        {issue.audit_title ? ` · audit: ${issue.audit_title}` : ""}
-                        {issue.department_name ? ` · ${issue.department_name}` : ""}
-                      </div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--color-primary)" }}>{issue.title}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
-                      <span className={`chip ${severityChip(issue.severity)}`}>{issue.severity}</span>
-                      <span className={`chip ${statusChip(issue.status)}`}>{issue.status}</span>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(issue)}>$ edit</button>
-                    </div>
-                  </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
-                    {issue.description}
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "var(--space-2)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
-                    <div>
-                      <span style={{ color: "var(--color-text-dim)" }}>// OWNER </span>
-                      <span style={{ color: "var(--color-tertiary)" }}>{issue.owner_name}</span>
-                    </div>
-                    <div>
-                      <span style={{ color: "var(--color-text-dim)" }}>// DUE </span>
-                      <span style={{ color: issue.flagged_overdue ? "var(--color-error)" : "var(--color-secondary)" }}>
-                        {String(issue.due_date).slice(0, 10)}
-                        {issue.flagged_overdue ? " [OVERDUE]" : ""}
-                      </span>
-                    </div>
-                    {issue.resolution_notes && (
-                      <div>
-                        <span style={{ color: "var(--color-text-dim)" }}>// RESOLUTION </span>
-                        <span style={{ color: "var(--color-text-muted)" }}>{issue.resolution_notes}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      applying={loading}
 
-        {showForm && (
-          <div className="card-elevated" style={{ height: "fit-content" }}>
-            <div className="card-header">{editingId ? `EDIT ISSUE #${editingId}` : "NEW COMPLIANCE ISSUE"}</div>
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-title">TITLE</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ci-title" className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required disabled={submitting} />
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+            New issue
+          </button>
+          </ToolbarActions>
+      <div>
+        <div className="card-header">Issue registry</div>
+        {loading ? (
+          <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
+            <span className="spinner" />
+            <span style={{ marginLeft: "var(--space-3)" }}>Loading issues…</span>
+          </div>
+        ) : items.length === 0 ? (
+          <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+            No compliance issues found.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            {items.map((issue) => (
+              <div key={issue.id} style={{ border: "1px solid var(--color-border-subtle)", padding: "var(--space-4)", background: issue.flagged_overdue ? "rgba(255, 0, 64, 0.04)" : "var(--color-surface)", borderRadius: "var(--radius-lg)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)" }}>
+                      ID {String(issue.id).padStart(3, "0")}
+                      {issue.audit_title ? ` · audit: ${issue.audit_title}` : ""}
+                      {issue.department_name ? ` · ${issue.department_name}` : ""}
+                    </div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--color-primary)" }}>{issue.title}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
+                    <span className={`chip ${severityChip(issue.severity)}`}>{issue.severity}</span>
+                    <span className={`chip ${statusChip(issue.status)}`}>{issue.status}</span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(issue)}>Edit</button>
                   </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-desc">DESCRIPTION</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ci-desc" className="form-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required disabled={submitting} />
+                <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "var(--space-2)" }}>
+                  {issue.description}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "var(--space-2)", fontSize: "12px" }}>
+                  <div>
+                    <span style={{ color: "var(--color-text-dim)" }}>Owner </span>
+                    <span style={{ color: "var(--color-tertiary)" }}>{issue.owner_name}</span>
                   </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="ci-sev">SEVERITY</label>
-                    <select id="ci-sev" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} style={selectStyle} disabled={submitting}>
-                      {["low", "medium", "high", "critical"].map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                  <div>
+                    <span style={{ color: "var(--color-text-dim)" }}>Due </span>
+                    <span style={{ color: issue.flagged_overdue ? "var(--color-error)" : "var(--color-secondary)" }}>
+                      {String(issue.due_date).slice(0, 10)}
+                      {issue.flagged_overdue ? " (overdue)" : ""}
+                    </span>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="ci-status">STATUS</label>
-                    <select id="ci-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={selectStyle} disabled={submitting}>
-                      {["open", "in_progress", "overdue", "resolved"].map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-owner">OWNER *</label>
-                  <select id="ci-owner" value={form.owner_user_id} onChange={(e) => setForm({ ...form, owner_user_id: e.target.value })} style={selectStyle} required disabled={submitting}>
-                    <option value="">// select owner</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-due">DUE DATE *</label>
-                  <input id="ci-due" type="date" className="form-input" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} required disabled={submitting} style={{ paddingLeft: "12px" }} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-dept">DEPARTMENT</label>
-                  <select id="ci-dept" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// none</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-audit">LINKED AUDIT</label>
-                  <select id="ci-audit" value={form.audit_id} onChange={(e) => setForm({ ...form, audit_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// none</option>
-                    {audits.map((a) => (
-                      <option key={a.id} value={a.id}>{a.title} ({a.status})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ci-res">RESOLUTION NOTES</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ci-res" className="form-input" value={form.resolution_notes} onChange={(e) => setForm({ ...form, resolution_notes: e.target.value })} disabled={submitting} />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                    {submitting ? "SAVING" : "COMMIT"}
-                  </button>
-                  <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
-                    CANCEL
-                  </button>
+                  {issue.resolution_notes && (
+                    <div>
+                      <span style={{ color: "var(--color-text-dim)" }}>Resolution </span>
+                      <span style={{ color: "var(--color-text-muted)" }}>{issue.resolution_notes}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </form>
+            ))}
           </div>
         )}
       </div>
+
+      <Modal
+        open={showForm}
+        title={editingId ? `Edit issue #${editingId}` : "New compliance issue"}
+        onClose={() => { if (!submitting) { setShowForm(false); setEditingId(null); } }}
+        width={640}
+      >
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ci-title">Title</label>
+              <input id="ci-title" className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ci-desc">Description</label>
+              <input id="ci-desc" className="form-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required disabled={submitting} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="ci-sev">Severity</label>
+                <select id="ci-sev" className="form-input" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} disabled={submitting}>
+                  {["low", "medium", "high", "critical"].map((st) => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="ci-status">Status</label>
+                <select id="ci-status" className="form-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} disabled={submitting}>
+                  {["open", "in_progress", "overdue", "resolved"].map((st) => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ci-owner">Owner</label>
+              <select id="ci-owner" className="form-input" value={form.owner_user_id} onChange={(e) => setForm({ ...form, owner_user_id: e.target.value })} required disabled={submitting}>
+                <option value="">Select owner</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ci-due">Due date</label>
+              <input id="ci-due" type="date" className="form-input" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} required disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ci-dept">Department</label>
+              <select id="ci-dept" className="form-input" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} disabled={submitting}>
+                <option value="">None</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ci-audit">Linked audit</label>
+              <select id="ci-audit" className="form-input" value={form.audit_id} onChange={(e) => setForm({ ...form, audit_id: e.target.value })} disabled={submitting}>
+                <option value="">None</option>
+                {audits.map((a) => (
+                  <option key={a.id} value={a.id}>{a.title} ({a.status})</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ci-res">Resolution notes</label>
+              <input id="ci-res" className="form-input" value={form.resolution_notes} onChange={(e) => setForm({ ...form, resolution_notes: e.target.value })} disabled={submitting} />
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-2)" }}>
+              <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                {submitting ? "Saving…" : editingId ? "Save changes" : "Create issue"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

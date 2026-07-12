@@ -50,9 +50,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const includeMeta = searchParams.get('meta') === '1';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const scope = searchParams.get('scope') || undefined;
 
     const [items, summary] = await Promise.all([
-      listCarbonTransactions({ departmentId: deptFilter }),
+      listCarbonTransactions({
+        departmentId: deptFilter,
+        search: search || undefined,
+        scope: scope && scope !== 'all' ? scope : undefined,
+      }),
       getCarbonSummary({ departmentId: deptFilter }),
     ]);
 
@@ -192,9 +198,16 @@ export async function POST(request: NextRequest) {
       if (msg === 'INVALID_EMISSION_FACTOR') {
         return errorResponse('Emission factor not found or inactive', 400, 'INVALID_EMISSION_FACTOR');
       }
+      if (msg === 'EMISSION_FACTOR_REQUIRED') {
+        return errorResponse(
+          'Auto emission calculation is enabled. Link an emission factor for purchase, manufacturing, expense, or fleet transactions.',
+          400,
+          'EMISSION_FACTOR_REQUIRED',
+        );
+      }
       if (msg === 'EMISSIONS_REQUIRED') {
         return errorResponse(
-          'Provide an emission_factor_id or calculated_emissions_kgco2e',
+          'Provide an emission_factor_id (auto-calc) or calculated_emissions_kgco2e',
           400,
           'EMISSIONS_REQUIRED',
         );

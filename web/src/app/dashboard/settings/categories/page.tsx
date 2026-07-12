@@ -2,7 +2,24 @@
 // src/app/dashboard/settings/categories/page.tsx
 // Categories Management interface for administrators - TerminalUI design system
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Modal from "@/components/Modal";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
+import { useTableSort } from "@/components/useTableSort";
+import SortableTh from "@/components/SortableTh";
 
 interface Category {
   id: number;
@@ -19,9 +36,9 @@ export default function CategoriesManagementPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Edit / Add form state
   const [isAdding, setIsAdding] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
   // Form Fields
   const [formName, setFormName] = useState("");
@@ -30,15 +47,11 @@ export default function CategoriesManagementPage() {
   const [formStatus, setFormStatus] = useState("active");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/categories");
+      const res = await fetch(`/api/admin/categories${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -51,7 +64,11 @@ export default function CategoriesManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   function handleAddClick() {
     setIsAdding(true);
@@ -132,89 +149,77 @@ export default function CategoriesManagementPage() {
     esg_category: "chip-green",
   };
 
+    const getSortValue = useCallback((row: Category, key: string): unknown => {
+    switch (key) {
+      case "id": return row.id;
+      case "name": return row.name;
+      case "type": return typeLabels[row.type] ?? row.type;
+      case "description": return row.description ?? "";
+      case "status": return row.status;
+      default: return null;
+    }
+  }, []);
+
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(categories, getSortValue, "id");
+  const formOpen = isAdding || editingCategory !== null;
+
   return (
     <div>
-      {/* Header */}
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / SETTINGS / CATEGORIES
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          CLASSIFICATION REGISTRY
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Define operational categories for CSR initiatives, gamification challenges, and ESG metrics.
-        </p>
-      </div>
+      <PageHeader
+        title="Classification registry"
+        description="Define operational categories for CSR initiatives, gamification challenges, and ESG metrics."
+      />
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
-        <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-          <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            RETRIEVING CATEGORIES INDEX...
-          </span>
-        </div>
+        <LoadingState label="Loading categories…" />
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: (isAdding || editingCategory) ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
-          
-          {/* ── LIST PANEL ── */}
+        <>
+          <TableFilters
+            search={draft.search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search categories…"
+            status={draft.status}
+            onStatusChange={setStatus}
+            statusOptions={[
+              { value: "all", label: "All statuses" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+              { value: "draft", label: "Draft" },
+              { value: "archived", label: "Archived" },
+            ]}
+            onApply={apply}
+            applying={loading}
+          />
+          <ToolbarActions>
+            <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
+              New category
+            </button>
+          </ToolbarActions>
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
-              <div className="card-header" style={{ marginBottom: 0 }}>CATEGORIES MASTER REGISTER</div>
-              {!isAdding && !editingCategory && (
-                <button onClick={handleAddClick} className="btn btn-primary btn-sm btn-cli">
-                  NEW CATEGORY
-                </button>
-              )}
-            </div>
-
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+            <SectionTitle>Categories master register</SectionTitle>
+            <DataTableWrap>
+              <DataTable>
                 <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>NAME</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>MODULE TYPE</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>DESCRIPTION COMMENTS</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTION</th>
+                  <tr>
+                    <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Name" columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Module type" columnKey="type" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Description" columnKey="description" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
+                    <ActionTh />
                   </tr>
                 </thead>
                 <tbody>
-                  {categories.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        {"// NO CATEGORIES DECLARED IN DATABASE SYSTEM"}
-                      </td>
-                    </tr>
+                  {sorted.length === 0 ? (
+                    <DataTableEmptyRow colSpan={6} message="No categories found." />
                   ) : (
-                    categories.map((c) => (
-                      <tr 
-                        key={c.id} 
-                        style={{ 
-                          borderBottom: "1px solid var(--color-border-subtle)", 
-                          background: editingCategory?.id === c.id ? "rgba(0, 255, 65, 0.04)" : "transparent"
-                        }}
-                      >
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(c.id).padStart(3, "0")}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{c.name}</td>
+                    sorted.map((c) => (
+                      <tr key={c.id}>
+                        <td className="col-id">{String(c.id).padStart(3, "0")}</td>
+                        <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{c.name}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>
                           <span className={`chip ${typeChips[c.type] ?? "chip-muted"}`}>
                             {typeLabels[c.type] ?? c.type}
@@ -222,155 +227,64 @@ export default function CategoriesManagementPage() {
                         </td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{c.description || "–"}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>
-                          <span className={`chip ${c.status === "active" ? "chip-green" : "chip-muted"}`}>
-                            {c.status}
-                          </span>
+                          <span className={`chip ${c.status === "active" ? "chip-green" : "chip-muted"}`}>{c.status}</span>
                         </td>
                         <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                          <button 
-                            onClick={() => handleEditClick(c)} 
-                            className="btn btn-secondary btn-sm"
-                          >
-                            $ edit
-                          </button>
+                          <button type="button" onClick={() => handleEditClick(c)} className="btn btn-secondary btn-sm">Edit</button>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableWrap>
           </div>
 
-          {/* ── CREATE / EDIT PANEL ── */}
-          {(isAdding || editingCategory) && (
-            <div className="card-elevated" style={{ height: "fit-content" }}>
-              <div className="card-header">
-                {isAdding ? "INITIALIZE CATEGORY" : `CONFIGURE TYPE ID: ${editingCategory?.id}`}
-              </div>
-
-              <form onSubmit={handleSubmit}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  
-                  {/* Name field */}
-                  <div className="form-group">
-                    <label className="form-label">CATEGORY NAME</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. Energy Management"
-                        value={formName}
-                        onChange={(e) => setFormName(e.target.value)}
-                        required
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Type selection */}
-                  <div className="form-group">
-                    <label className="form-label">MODULE RELATION TYPE</label>
-                    <div>
-                      <select 
-                        value={formType}
-                        onChange={(e) => setFormType(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="csr_activity">CSR ACTIVITY</option>
-                        <option value="challenge">GAMIFICATION CHALLENGE</option>
-                        <option value="esg_category">ESG SCORE CATEGORY</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Description field */}
-                  <div className="form-group">
-                    <label className="form-label">DESCRIPTION COMMENTS</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. Renewable energy initiatives and audits"
-                        value={formDescription}
-                        onChange={(e) => setFormDescription(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Status selection */}
-                  <div className="form-group">
-                    <label className="form-label">REGISTRY STATUS</label>
-                    <div>
-                      <select 
-                        value={formStatus}
-                        onChange={(e) => setFormStatus(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="active">ACTIVE</option>
-                        <option value="inactive">INACTIVE</option>
-                        <option value="draft">DRAFT</option>
-                        <option value="archived">ARCHIVED</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div 
-                    className="ascii-divider" 
-                    style={{ color: "var(--color-border-subtle)", margin: "var(--space-2) 0" }}
-                  >
-                    {"─".repeat(24)}
-                  </div>
-
-                  {/* Buttons */}
-                  <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                    <button 
-                      type="submit" 
-                      disabled={submitting || !formName}
-                      className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`}
-                    >
-                      {submitting ? "COMMITTING" : "COMMIT"}
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={closePanel}
-                      className="btn btn-ghost btn-md btn-full"
-                      disabled={submitting}
-                    >
-                      CANCEL
-                    </button>
-                  </div>
+          <Modal
+            open={formOpen}
+            title={isAdding ? "New category" : `Edit category #${editingCategory?.id ?? ""}`}
+            onClose={() => { if (!submitting) closePanel(); }}
+            width={520}
+          >
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+                <div className="form-group">
+                  <label className="form-label required">Category name</label>
+                  <input type="text" className="form-input" placeholder="e.g. Energy Management" value={formName} onChange={(e) => setFormName(e.target.value)} required disabled={submitting} />
                 </div>
-              </form>
-            </div>
-          )}
-
-        </div>
+                <div className="form-group">
+                  <label className="form-label">Module relation type</label>
+                  <select className="form-input" value={formType} onChange={(e) => setFormType(e.target.value)} disabled={submitting}>
+                    <option value="csr_activity">CSR activity</option>
+                    <option value="challenge">Gamification challenge</option>
+                    <option value="esg_category">ESG score category</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input type="text" className="form-input" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} disabled={submitting} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Registry status</label>
+                  <select className="form-input" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} disabled={submitting}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button type="submit" disabled={submitting || !formName} className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`}>
+                    {submitting ? "Saving…" : editingCategory ? "Save changes" : "Create category"}
+                  </button>
+                  <button type="button" onClick={closePanel} className="btn btn-ghost btn-md btn-full" disabled={submitting}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          </Modal>
+        </>
       )}
     </div>
   );

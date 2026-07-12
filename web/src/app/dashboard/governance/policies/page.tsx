@@ -1,7 +1,22 @@
 "use client";
 // ESG Policies — TerminalUI
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
+import Modal from "@/components/Modal";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface Policy {
   id: number;
@@ -44,7 +59,7 @@ export default function PoliciesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [ackingId, setAckingId] = useState<number | null>(null);
@@ -56,7 +71,9 @@ export default function PoliciesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/governance/policies?status=${statusFilter}`);
+      const res = await fetch(
+        `/api/governance/policies${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load policies");
       setItems(json.data.items);
@@ -67,7 +84,7 @@ export default function PoliciesPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -164,9 +181,6 @@ export default function PoliciesPage() {
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # GOVERNANCE / POLICIES
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           ESG POLICIES
         </h1>
@@ -187,47 +201,49 @@ export default function PoliciesPage() {
           { label: "ACKS", value: stats?.total_acknowledgements, color: "var(--color-primary)" },
         ].map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// {s.label}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{s.label}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
           </div>
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span><span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-4)", alignItems: "center" }}>
-        {canManage && (
-          <button type="button" className="btn btn-primary btn-md btn-cli" onClick={openCreate}>
-            NEW POLICY
-          </button>
-        )}
-        {["all", "active", "draft", "inactive", "archived"].map((s) => (
-          <button key={s} type="button" className={`chip ${statusFilter === s ? "chip-green" : "chip-muted"}`} onClick={() => setStatusFilter(s)} style={{ cursor: "pointer" }}>
-            {s}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: showForm ? "1fr minmax(300px, 380px)" : "1fr", gap: "var(--space-6)" }}>
+      <TableFilters
+        search={draft.search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search title, category, version…"
+        status={draft.status}
+        onStatusChange={setStatus}
+        statusOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "draft", label: "Draft" },
+          { value: "inactive", label: "Inactive" },
+          { value: "archived", label: "Archived" },
+        ]}
+            
+            onApply={apply}
+            applying={loading}
+          />
+          {canManage && (
+            <ToolbarActions>
+              <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+                New policy
+              </button>
+            </ToolbarActions>
+          )}
+      <div>
         <div>
-          <div className="card-header">POLICY REGISTRY</div>
+          <div className="card-header">Policy registry</div>
           {loading ? (
             <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
               <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING POLICIES...</span>
+              <span style={{ marginLeft: "var(--space-3)" }}>Loading policies…</span>
             </div>
           ) : items.length === 0 ? (
-            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No policies found.
+            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>No policies found.
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -236,7 +252,7 @@ export default function PoliciesPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
                     <div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)" }}>
-                        #{String(p.id).padStart(3, "0")} · v{p.version}
+                        ID {String(p.id).padStart(3, "0")} · v{p.version}
                         {p.category ? ` · ${p.category}` : ""}
                         {" · "}
                         {String(p.effective_date).slice(0, 10)}
@@ -256,25 +272,25 @@ export default function PoliciesPage() {
                         {expandedId === p.id ? "hide" : "view"}
                       </button>
                       {canManage && (
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}>$ edit</button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(p)}>Edit</button>
                       )}
                       {p.status === "active" && p.requires_acknowledgement && !p.user_has_acknowledged && (
-                        <button type="button" className="btn btn-primary btn-sm btn-cli" disabled={ackingId === p.id} onClick={() => handleAcknowledge(p.id)}>
+                        <button type="button" className="btn btn-primary btn-sm" disabled={ackingId === p.id} onClick={() => handleAcknowledge(p.id)}>
                           {ackingId === p.id ? "ACKING" : "ACKNOWLEDGE"}
                         </button>
                       )}
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))", gap: "var(--space-2)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
-                    <div><span style={{ color: "var(--color-text-dim)" }}>// ACKS </span><span style={{ color: "var(--color-tertiary)" }}>{p.acknowledgement_count}</span></div>
-                    <div><span style={{ color: "var(--color-text-dim)" }}>// PENDING </span><span style={{ color: "var(--color-secondary)" }}>{p.pending_user_count}</span></div>
+                    <div><span style={{ color: "var(--color-text-dim)" }}>ACKS </span><span style={{ color: "var(--color-tertiary)" }}>{p.acknowledgement_count}</span></div>
+                    <div><span style={{ color: "var(--color-text-dim)" }}>Pending </span><span style={{ color: "var(--color-secondary)" }}>{p.pending_user_count}</span></div>
                     {p.created_by_name && (
-                      <div><span style={{ color: "var(--color-text-dim)" }}>// BY </span><span style={{ color: "var(--color-text-muted)" }}>{p.created_by_name}</span></div>
+                      <div><span style={{ color: "var(--color-text-dim)" }}>BY </span><span style={{ color: "var(--color-text-muted)" }}>{p.created_by_name}</span></div>
                     )}
                   </div>
                   {expandedId === p.id && (
                     <div style={{ marginTop: "var(--space-3)", padding: "var(--space-3)", border: "1px dashed var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)", whiteSpace: "pre-wrap" }}>
-                      {p.content || "// No content provided."}
+                      {p.content || "No content provided."}
                     </div>
                   )}
                 </div>
@@ -283,90 +299,73 @@ export default function PoliciesPage() {
           )}
         </div>
 
-        {showForm && canManage && (
-          <div className="card-elevated" style={{ height: "fit-content" }}>
-            <div className="card-header">{editingId ? `EDIT POLICY #${editingId}` : "NEW POLICY"}</div>
+        <Modal
+          open={showForm && canManage}
+          title={editingId ? `Edit policy ${editingId}` : "New policy"}
+          onClose={() => { if (!submitting) { setShowForm(false); setEditingId(null); } }}
+          width={640}
+        >
             <form onSubmit={handleSubmit}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="pol-title">TITLE</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="pol-title" className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required disabled={submitting} />
-                  </div>
+                  <label className="form-label required" htmlFor="pol-title">Title</label>
+                  <input id="pol-title" className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required disabled={submitting} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pol-cat">CATEGORY</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="pol-cat" className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} disabled={submitting} placeholder="ethics, environment..." />
-                    </div>
+                    <label className="form-label" htmlFor="pol-cat">Category</label>
+                    <input id="pol-cat" className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} disabled={submitting} placeholder="ethics, environment..." />
                   </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pol-ver">VERSION</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="pol-ver" className="form-input" value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} required disabled={submitting} />
-                    </div>
+                    <label className="form-label required" htmlFor="pol-ver">Version</label>
+                    <input id="pol-ver" className="form-input" value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} required disabled={submitting} />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="pol-content">CONTENT</label>
+                  <label className="form-label" htmlFor="pol-content">Content</label>
                   <textarea
                     id="pol-content"
+                    className="form-input"
                     value={form.content}
                     onChange={(e) => setForm({ ...form, content: e.target.value })}
                     disabled={submitting}
                     rows={6}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      background: "var(--color-bg)",
-                      border: "1px solid var(--color-border-medium)",
-                      color: "var(--color-primary)",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "13px",
-                      outline: "none",
-                      borderRadius: "0px",
-                      resize: "vertical",
-                    }}
+                    style={{ resize: "vertical" }}
                   />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pol-eff">EFFECTIVE</label>
-                    <input id="pol-eff" type="date" className="form-input" value={form.effective_date} onChange={(e) => setForm({ ...form, effective_date: e.target.value })} required disabled={submitting} style={{ paddingLeft: "12px" }} />
+                    <label className="form-label required" htmlFor="pol-eff">Effective</label>
+                    <input id="pol-eff" type="date" className="form-input" value={form.effective_date} onChange={(e) => setForm({ ...form, effective_date: e.target.value })} required disabled={submitting} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="pol-exp">EXPIRY</label>
-                    <input id="pol-exp" type="date" className="form-input" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} disabled={submitting} style={{ paddingLeft: "12px" }} />
+                    <label className="form-label" htmlFor="pol-exp">Expiry</label>
+                    <input id="pol-exp" type="date" className="form-input" value={form.expiry_date} onChange={(e) => setForm({ ...form, expiry_date: e.target.value })} disabled={submitting} />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="pol-status">STATUS</label>
-                  <select id="pol-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={selectStyle} disabled={submitting}>
+                  <label className="form-label required" htmlFor="pol-status">Status</label>
+                  <select id="pol-status" className="form-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} disabled={submitting}>
                     {["active", "draft", "inactive", "archived"].map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
-                <label style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)", cursor: "pointer" }}>
+                <label className="form-check">
                   <input type="checkbox" checked={form.requires_acknowledgement} onChange={(e) => setForm({ ...form, requires_acknowledgement: e.target.checked })} disabled={submitting} />
-                  [x] requires acknowledgement
+                  Requires employee acknowledgement
                 </label>
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                    {submitting ? "SAVING" : "COMMIT"}
+                  <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                    {submitting ? "Saving…" : editingId ? "Save changes" : "Create policy"}
                   </button>
                   <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
-                    CANCEL
+                    Cancel
                   </button>
                 </div>
               </div>
             </form>
-          </div>
-        )}
+        </Modal>
       </div>
     </div>
   );

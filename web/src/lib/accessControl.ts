@@ -81,6 +81,11 @@ export const NAV_SECTIONS: NavSection[] = [
         roles: ALL_ROLES,
       },
       {
+        label: 'Training',
+        href: '/dashboard/social/training',
+        roles: ALL_ROLES,
+      },
+      {
         label: 'Diversity Dashboard',
         href: '/dashboard/social/diversity',
         roles: FULL_ACCESS_ROLES,
@@ -210,6 +215,7 @@ export const ROLE_ALLOWED_PREFIXES: Record<UserRole, string[]> = {
     '/dashboard/environmental/goals',
     '/dashboard/social/csr',
     '/dashboard/social/participation',
+    '/dashboard/social/training',
     '/dashboard/governance/policies',
     '/dashboard/governance/acknowledgements',
     '/dashboard/governance/compliance',
@@ -219,6 +225,7 @@ export const ROLE_ALLOWED_PREFIXES: Record<UserRole, string[]> = {
     '/dashboard/employee',
     '/dashboard/social/csr',
     '/dashboard/social/participation',
+    '/dashboard/social/training',
     '/dashboard/governance/policies',
     '/dashboard/gamification/challenges',
     '/dashboard/gamification/badges',
