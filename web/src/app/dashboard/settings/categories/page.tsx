@@ -201,7 +201,7 @@ export default function CategoriesManagementPage() {
                   {categories.length === 0 ? (
                     <tr>
                       <td colSpan={6} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        // NO CATEGORIES DECLARED IN DATABASE SYSTEM
+                        {"// NO CATEGORIES DECLARED IN DATABASE SYSTEM"}
                       </td>
                     </tr>
                   ) : (

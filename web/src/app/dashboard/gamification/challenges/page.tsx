@@ -240,7 +240,7 @@ export default function ChallengesManagementPage() {
                   {challenges.length === 0 ? (
                     <tr>
                       <td colSpan={9} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        // NO CHALLENGES DISPATCHED IN DATABASE SYSTEM
+                        {"// NO CHALLENGES DISPATCHED IN DATABASE SYSTEM"}
                       </td>
                     </tr>
                   ) : (
@@ -337,7 +337,7 @@ export default function ChallengesManagementPage() {
                         }}
                         disabled={submitting}
                       >
-                        <option value="null">// NO CATEGORY ASSIGNED</option>
+                        <option value="null">{"// NO CATEGORY ASSIGNED"}</option>
                         {categories.map((cat) => (
                           <option key={cat.id} value={cat.id}>
                             &gt; {cat.name}

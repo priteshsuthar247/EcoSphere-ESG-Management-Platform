@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       JOIN rewards rw ON rw.id = rr.reward_id
     `;
 
-    const values: any[] = [];
+    const values: (string | number | boolean | null)[] = [];
 
     // Employees can only view their own redemptions
     if (payload.role === 'employee') {

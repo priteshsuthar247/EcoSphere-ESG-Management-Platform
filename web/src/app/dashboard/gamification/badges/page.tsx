@@ -181,7 +181,7 @@ export default function BadgesDashboardPage() {
                 {awarded.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                      // NO BADGES AWARDED TO DATE
+                      {"// NO BADGES AWARDED TO DATE"}
                     </td>
                   </tr>
                 ) : (

@@ -136,7 +136,7 @@ export default function ChallengeParticipationPage() {
                 {participations.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                      // NO PARTICIPATIONS LOGGED FOR REVIEW
+                      {"// NO PARTICIPATIONS LOGGED FOR REVIEW"}
                     </td>
                   </tr>
                 ) : (

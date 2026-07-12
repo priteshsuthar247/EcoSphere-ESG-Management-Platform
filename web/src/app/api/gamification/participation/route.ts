@@ -7,7 +7,7 @@ import pool from '@/config/db';
 import { successResponse, errorResponse } from '@/utils/apiResponse';
 import { verifyToken } from '@/lib/auth';
 import { sendMail } from '@/lib/email';
-import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import type { RowDataPacket } from 'mysql2';
 import logger from '@/lib/logger';
 
 interface ParticipationRow extends RowDataPacket {
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
       JOIN challenges c ON c.id = cp.challenge_id
     `;
 
-    const values: any[] = [];
+    const values: (string | number | boolean | Date | null)[] = [];
 
     // Employees can only view their own participations
     if (payload.role === 'employee') {

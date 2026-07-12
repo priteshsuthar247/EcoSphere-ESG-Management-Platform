@@ -63,7 +63,7 @@ export default async function AdminDashboard() {
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>
-              // {s.label}
+              {"// "}{s.label}
             </div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
               {s.value}

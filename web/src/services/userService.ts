@@ -182,7 +182,7 @@ export async function updateUserAdmin(
 ): Promise<boolean> {
   try {
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: (string | number | null)[] = [];
 
     if (data.role !== undefined) {
       fields.push('role = ?');
