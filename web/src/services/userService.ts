@@ -125,3 +125,91 @@ export async function updateLastLogin(userId: number): Promise<void> {
     logger.warn('updateLastLogin failed', { error: (err as Error).message, userId });
   }
 }
+
+export interface AdminUserListEntry extends RowDataPacket {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  department_id: number | null;
+  department_name: string | null;
+  status: string;
+  esg_points_balance: number;
+  total_xp: number;
+  joined_at: string;
+  last_login_at: string | null;
+}
+
+/**
+ * Get all users with their associated department names.
+ */
+export async function getAllUsers(): Promise<AdminUserListEntry[]> {
+  try {
+    const [rows] = await pool.execute<AdminUserListEntry[]>(`
+      SELECT 
+        u.id, 
+        u.name, 
+        u.email, 
+        u.role, 
+        u.department_id, 
+        d.name AS department_name, 
+        u.status, 
+        u.esg_points_balance, 
+        u.total_xp, 
+        u.joined_at, 
+        u.last_login_at
+      FROM users u
+      LEFT JOIN departments d ON d.id = u.department_id
+      ORDER BY u.id ASC
+    `);
+    return rows;
+  } catch (err) {
+    logger.error('getAllUsers failed', { error: (err as Error).message });
+    throw err;
+  }
+}
+
+/**
+ * Update a user's role, department, or status by an administrator.
+ */
+export async function updateUserAdmin(
+  userId: number,
+  data: {
+    role?: UserRole;
+    department_id?: number | null;
+    status?: 'active' | 'inactive' | 'draft' | 'archived';
+  }
+): Promise<boolean> {
+  try {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (data.role !== undefined) {
+      fields.push('role = ?');
+      values.push(data.role);
+    }
+    if (data.department_id !== undefined) {
+      fields.push('department_id = ?');
+      values.push(data.department_id);
+    }
+    if (data.status !== undefined) {
+      fields.push('status = ?');
+      values.push(data.status);
+    }
+
+    if (fields.length === 0) return false;
+
+    values.push(userId);
+
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    return result.affectedRows > 0;
+  } catch (err) {
+    logger.error('updateUserAdmin failed', { error: (err as Error).message, userId });
+    throw err;
+  }
+}
+

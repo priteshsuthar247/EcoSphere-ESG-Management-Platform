@@ -62,6 +62,7 @@ const NAV_SECTIONS: {
   {
     section: "SETTINGS",
     items: [
+      { label: "User Management", href: "/dashboard/settings/users", roles: ["admin"] },
       { label: "Departments", href: "/dashboard/settings/departments", roles: ["admin"] },
       { label: "Categories", href: "/dashboard/settings/categories", roles: ["admin"] },
       { label: "ESG Configuration", href: "/dashboard/settings/esg-config", roles: ["admin"] },
