@@ -1,8 +1,10 @@
 "use client";
 // src/app/dashboard/social/csr/page.tsx
-// CSR Activities — TerminalUI
+// CSR Activities
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Modal from "@/components/Modal";
+import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
 
 interface CsrActivity {
   id: number;
@@ -53,10 +55,12 @@ export default function CsrActivitiesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [viewerId, setViewerId] = useState<number | null>(null);
+  const [joinedIds, setJoinedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [joiningId, setJoiningId] = useState<number | null>(null);
@@ -68,14 +72,30 @@ export default function CsrActivitiesPage() {
     setError("");
     try {
       const params = new URLSearchParams({ meta: "1", status: statusFilter });
-      const res = await fetch(`/api/social/csr-activities?${params}`);
+      const [res, partRes] = await Promise.all([
+        fetch(`/api/social/csr-activities?${params}`),
+        fetch("/api/social/participations?meta=1"),
+      ]);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load CSR activities");
       setItems(json.data.items);
       setStats(json.data.stats);
       setCategories(json.data.categories ?? []);
       setCanManage(Boolean(json.data.viewer?.canManage));
-      setViewerId(json.data.viewer?.id ?? null);
+      const vid = json.data.viewer?.id ?? null;
+      setViewerId(vid);
+
+      // Track activities this user already joined so Join is hidden
+      if (partRes.ok) {
+        const pj = await partRes.json();
+        if (pj.success && Array.isArray(pj.data?.items)) {
+          const mine = pj.data.items.filter(
+            (p: { user_id: number; csr_activity_id: number }) =>
+              vid == null || p.user_id === vid,
+          );
+          setJoinedIds(new Set(mine.map((p: { csr_activity_id: number }) => p.csr_activity_id)));
+        }
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -186,99 +206,103 @@ export default function CsrActivitiesPage() {
     return "chip-muted";
   }
 
+  const filteredItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          matchesStatus(statusFilter, item.status) &&
+          matchesSearch(search, [item.id, item.title, item.description, item.location, item.category_name]),
+      ),
+    [items, statusFilter, search],
+  );
+
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # SOCIAL / CSR-ACTIVITIES
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          CSR ACTIVITIES
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "4px" }}>
+          CSR activities
         </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
+        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>
           Organise social initiatives and enable employees to join and earn ESG points.
         </p>
       </div>
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         {[
-          { label: "TOTAL", value: stats?.total, color: "var(--color-primary)" },
-          { label: "UPCOMING", value: stats?.upcoming, color: "var(--color-tertiary)" },
-          { label: "ACTIVE", value: stats?.active, color: "var(--color-primary)" },
-          { label: "COMPLETED", value: stats?.completed, color: "var(--color-secondary)" },
-          { label: "PARTICIPANTS", value: stats?.total_participants, color: "var(--color-tertiary)" },
+          { label: "Total", value: stats?.total, color: "var(--color-primary)" },
+          { label: "Upcoming", value: stats?.upcoming, color: "var(--color-tertiary)" },
+          { label: "Active", value: stats?.active, color: "var(--color-primary)" },
+          { label: "Completed", value: stats?.completed, color: "var(--color-secondary)" },
+          { label: "Participants", value: stats?.total_participants, color: "var(--color-tertiary)" },
         ].map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// {s.label}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{s.label}</div>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
           </div>
         ))}
       </div>
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
+          <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span><span>{success}</span>
+          <span>{success}</span>
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-4)", alignItems: "center" }}>
-        {canManage && (
-          <button type="button" className="btn btn-primary btn-md btn-cli" onClick={openCreate}>
-            NEW ACTIVITY
-          </button>
-        )}
-        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-dim)" }}>// STATUS</span>
-          {["all", "upcoming", "active", "completed", "cancelled"].map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`chip ${statusFilter === s ? "chip-green" : "chip-muted"}`}
-              onClick={() => setStatusFilter(s)}
-              style={{ cursor: "pointer" }}
-            >
-              {s}
+      <TableFilters
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search title, location, category…"
+        status={statusFilter}
+        onStatusChange={setStatusFilter}
+        statusOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "upcoming", label: "Upcoming" },
+          { value: "active", label: "Active" },
+          { value: "completed", label: "Completed" },
+          { value: "cancelled", label: "Cancelled" },
+          { value: "archived", label: "Archived" },
+        ]}
+        extra={
+          canManage ? (
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+              New activity
             </button>
-          ))}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: showForm ? "1fr minmax(300px, 380px)" : "1fr", gap: "var(--space-6)" }}>
-        <div>
-          <div className="card-header">ACTIVITY REGISTRY</div>
+      <div>
+          <div className="card-header">Activity registry ({filteredItems.length})</div>
           {loading ? (
             <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
               <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING ACTIVITIES...</span>
+              <span style={{ marginLeft: "var(--space-3)" }}>Loading activities…</span>
             </div>
-          ) : items.length === 0 ? (
-            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No CSR activities found.
+          ) : filteredItems.length === 0 ? (
+            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+              No CSR activities found.
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <div
                   key={item.id}
                   style={{
                     border: "1px solid var(--color-border-subtle)",
                     padding: "var(--space-4)",
-                    background: editingId === item.id ? "rgba(0, 255, 65, 0.04)" : "var(--color-surface)",
+                    background: "var(--color-surface)",
+                    borderRadius: "var(--radius-lg)",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
                     <div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)" }}>
-                        #{String(item.id).padStart(3, "0")}
+                        ID {String(item.id).padStart(3, "0")}
                         {item.category_name ? ` · ${item.category_name}` : ""}
                         {item.scheduled_date ? ` · ${String(item.scheduled_date).slice(0, 10)}` : ""}
                       </div>
@@ -290,17 +314,21 @@ export default function CsrActivitiesPage() {
                       <span className={`chip ${statusChip(item.status)}`}>{item.status}</span>
                       <span className="chip chip-amber">{item.points_awarded} pts</span>
                       {canManage && (
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>$ edit</button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)}>Edit</button>
                       )}
-                      {!["cancelled", "archived"].includes(item.status) && (
+                      {!["cancelled", "archived"].includes(item.status) &&
+                        !joinedIds.has(item.id) && (
                         <button
                           type="button"
-                          className="btn btn-primary btn-sm btn-cli"
+                          className="btn btn-primary btn-sm"
                           disabled={joiningId === item.id}
                           onClick={() => handleJoin(item.id)}
                         >
-                          {joiningId === item.id ? "JOINING" : "JOIN"}
+                          {joiningId === item.id ? "Joining…" : "Join"}
                         </button>
+                      )}
+                      {joinedIds.has(item.id) && (
+                        <span className="chip chip-green">Joined</span>
                       )}
                     </div>
                   </div>
@@ -313,31 +341,31 @@ export default function CsrActivitiesPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "var(--space-3)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// LOCATION</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>Location</div>
                       <div style={{ color: "var(--color-text-primary)" }}>{item.location || "—"}</div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// PARTICIPANTS</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>Participants</div>
                       <div style={{ color: "var(--color-tertiary)" }}>
                         {item.participant_count}
                         {item.max_participants !== null ? ` / ${item.max_participants}` : ""}
                       </div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// PENDING</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>Pending</div>
                       <div style={{ color: "var(--color-secondary)" }}>{item.pending_count}</div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// APPROVED</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>Approved</div>
                       <div style={{ color: "var(--color-primary)" }}>{item.approved_count}</div>
                     </div>
                     <div>
-                      <div style={{ color: "var(--color-text-dim)" }}>// EVIDENCE</div>
+                      <div style={{ color: "var(--color-text-dim)" }}>Evidence</div>
                       <div style={{ color: "var(--color-text-muted)" }}>{item.evidence_required ? "required" : "optional"}</div>
                     </div>
                     {item.created_by_name && (
                       <div>
-                        <div style={{ color: "var(--color-text-dim)" }}>// CREATED BY</div>
+                        <div style={{ color: "var(--color-text-dim)" }}>Created by</div>
                         <div style={{ color: "var(--color-text-muted)" }}>{item.created_by_name}</div>
                       </div>
                     )}
@@ -348,96 +376,77 @@ export default function CsrActivitiesPage() {
           )}
         </div>
 
-        {showForm && canManage && (
-          <div className="card-elevated" style={{ height: "fit-content" }}>
-            <div className="card-header">{editingId ? `EDIT ACTIVITY #${editingId}` : "NEW CSR ACTIVITY"}</div>
+      <Modal
+        open={showForm && canManage}
+        title={editingId ? `Edit activity ${editingId}` : "New CSR activity"}
+        onClose={() => { if (!submitting) { setShowForm(false); setEditingId(null); } }}
+        width={640}
+      >
             <form onSubmit={handleSubmit}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="csr-title">TITLE</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="csr-title" className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required disabled={submitting} />
-                  </div>
+                  <label className="form-label required" htmlFor="csr-title">Title</label>
+                  <input id="csr-title" className="form-input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required disabled={submitting} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="csr-desc">DESCRIPTION</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="csr-desc" className="form-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={submitting} />
-                  </div>
+                  <label className="form-label" htmlFor="csr-desc">Description</label>
+                  <input id="csr-desc" className="form-input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} disabled={submitting} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="csr-cat">CATEGORY</label>
-                  <select id="csr-cat" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// none</option>
+                  <label className="form-label" htmlFor="csr-cat">Category</label>
+                  <select id="csr-cat" className="form-input" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })} disabled={submitting}>
+                    <option value="">None</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
-                  {categories.length === 0 && (
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginTop: "4px" }}>
-                      // Create CSR categories under Settings → Categories
-                    </div>
-                  )}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="csr-date">DATE</label>
-                    <input id="csr-date" type="date" className="form-input" value={form.scheduled_date} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} disabled={submitting} style={{ paddingLeft: "12px" }} />
+                    <label className="form-label" htmlFor="csr-date">Date</label>
+                    <input id="csr-date" type="date" className="form-input" value={form.scheduled_date} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} disabled={submitting} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="csr-pts">POINTS</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="csr-pts" className="form-input" type="number" min="0" step="1" value={form.points_awarded} onChange={(e) => setForm({ ...form, points_awarded: e.target.value })} required disabled={submitting} />
-                    </div>
+                    <label className="form-label required" htmlFor="csr-pts">Points</label>
+                    <input id="csr-pts" className="form-input" type="number" min="0" step="1" value={form.points_awarded} onChange={(e) => setForm({ ...form, points_awarded: e.target.value })} required disabled={submitting} />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="csr-loc">LOCATION</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="csr-loc" className="form-input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} disabled={submitting} />
-                  </div>
+                  <label className="form-label" htmlFor="csr-loc">Location</label>
+                  <input id="csr-loc" className="form-input" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} disabled={submitting} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="csr-max">MAX PARTICIPANTS</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="csr-max" className="form-input" type="number" min="1" step="1" value={form.max_participants} onChange={(e) => setForm({ ...form, max_participants: e.target.value })} disabled={submitting} placeholder="unlimited" />
-                  </div>
+                  <label className="form-label" htmlFor="csr-max">Max participants</label>
+                  <input id="csr-max" className="form-input" type="number" min="1" step="1" value={form.max_participants} onChange={(e) => setForm({ ...form, max_participants: e.target.value })} disabled={submitting} placeholder="unlimited" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="csr-status">STATUS</label>
-                  <select id="csr-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={selectStyle} disabled={submitting}>
+                  <label className="form-label required" htmlFor="csr-status">Status</label>
+                  <select id="csr-status" className="form-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} disabled={submitting}>
                     {["upcoming", "active", "completed", "cancelled", "archived"].map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
-                <label style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)", cursor: "pointer" }}>
+                <label className="form-check">
                   <input
                     type="checkbox"
                     checked={form.evidence_required}
                     onChange={(e) => setForm({ ...form, evidence_required: e.target.checked })}
                     disabled={submitting}
                   />
-                  [x] evidence required for approval
+                  Evidence required for approval
                 </label>
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                    {submitting ? "SAVING" : "COMMIT"}
+                <div style={{ display: "flex", gap: "var(--space-3)", marginTop: 8 }}>
+                  <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                    {submitting ? "Saving…" : editingId ? "Save changes" : "Create activity"}
                   </button>
                   <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
-                    CANCEL
+                    Cancel
                   </button>
                 </div>
               </div>
             </form>
-          </div>
-        )}
-      </div>
+      </Modal>
     </div>
   );
 }

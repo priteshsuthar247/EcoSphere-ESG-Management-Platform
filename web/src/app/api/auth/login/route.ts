@@ -43,10 +43,15 @@ export async function POST(request: NextRequest) {
       return errorResponse('Invalid email or password', 401, 'INVALID_CREDENTIALS');
     }
 
+    // Normalize role so redirect never falls through incorrectly
+    const role = user.role as 'admin' | 'ceo' | 'departmental_head' | 'employee';
+    const validRoles = ['admin', 'ceo', 'departmental_head', 'employee'] as const;
+    const safeRole = validRoles.includes(role) ? role : 'employee';
+
     const token = signToken({
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: safeRole,
       department_id: user.department_id,
       name: user.name,
     });
@@ -54,23 +59,33 @@ export async function POST(request: NextRequest) {
     // Update last login (non-blocking)
     updateLastLogin(user.id).catch(() => {});
 
-    const dashboardPath = getDashboardPath(user.role);
+    // Always derive home from role — never trust a client-supplied path
+    const dashboardPath = getDashboardPath(safeRole);
 
-    logger.info('User logged in', { userId: user.id, role: user.role });
+    logger.info('User logged in', { userId: user.id, role: safeRole, redirectTo: dashboardPath });
 
     const response = successResponse(
-      { redirectTo: dashboardPath, role: user.role, name: user.name },
+      { redirectTo: dashboardPath, role: safeRole, name: user.name },
       'Login successful',
     );
 
-    // Set secure httpOnly cookie
-    response.cookies.set('auth-token', token, {
+    const cookieOpts = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 30, // 30 minutes
+      // lax: reliable on same-site navigations after login (strict can drop cookies in edge cases)
+      sameSite: 'lax' as const,
       path: '/',
+    };
+
+    // Clear any previous session cookie first, then set the new JWT
+    response.cookies.set('auth-token', '', { ...cookieOpts, maxAge: 0 });
+    response.cookies.set('auth-token', token, {
+      ...cookieOpts,
+      maxAge: 60 * 30, // 30 minutes
     });
+
+    // Prevent caches from replaying a prior user's login response
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
 
     return response;
   } catch (err) {

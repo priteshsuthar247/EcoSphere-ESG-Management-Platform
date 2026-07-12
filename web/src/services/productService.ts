@@ -199,7 +199,7 @@ export async function updateProduct(
 ): Promise<Product | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     if (input.name !== undefined) {
       fields.push('name = ?');

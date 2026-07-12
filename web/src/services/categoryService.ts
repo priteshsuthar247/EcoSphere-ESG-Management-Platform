@@ -23,7 +23,7 @@ export async function listCategories(options?: {
 }): Promise<Category[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.type) {
       clauses.push('type = ?');

@@ -40,7 +40,7 @@ export async function listAcknowledgements(options?: {
 }): Promise<PolicyAcknowledgement[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('u.department_id = ?');
@@ -171,7 +171,7 @@ export async function getAcknowledgementStats(options?: {
 }> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('u.department_id = ?');
       params.push(options.departmentId);

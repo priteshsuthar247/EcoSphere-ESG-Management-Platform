@@ -69,7 +69,7 @@ export async function listPolicies(options?: {
 }): Promise<EsgPolicy[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('p.status = ?');
@@ -175,7 +175,7 @@ export async function updatePolicy(
 ): Promise<EsgPolicy | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     if (input.title !== undefined) {
       fields.push('title = ?');

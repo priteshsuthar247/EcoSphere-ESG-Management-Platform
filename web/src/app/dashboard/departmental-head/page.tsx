@@ -85,7 +85,7 @@ export default async function DeptHeadDashboard() {
             { label: "Log Carbon Data",            href: "/dashboard/environmental/carbon" },
             { label: "View Compliance Issues",     href: "/dashboard/governance/compliance" },
           ].map((a) => (
-            <a key={a.label} href={a.href} className="btn btn-secondary btn-md btn-cli">
+            <a key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
             </a>
           ))}

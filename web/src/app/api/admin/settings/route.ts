@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || !['admin', 'ceo', 'departmental_head'].includes(payload.role)) {
+    // Settings are admin/CEO only (department heads must not read system config)
+    if (!payload || !['admin', 'ceo'].includes(payload.role)) {
       return errorResponse('Access denied. Insufficient privileges.', 403, 'FORBIDDEN');
     }
 
@@ -62,13 +63,19 @@ export async function GET(request: NextRequest) {
         config[key] = {
           enableEmissionCalculation: true,
           requireCsrEvidence: true,
-          autoAwardBadges: true
+          autoAwardBadges: true,
+          weightEnvironmental: 0.4,
+          weightSocial: 0.3,
+          weightGovernance: 0.3,
         };
       } else if (key === 'notification_config') {
         config[key] = {
           emailAlertsCompliance: true,
           emailAlertsRedemption: true,
-          emailAlertsChallenges: true
+          emailAlertsChallenges: true,
+          emailAlertsCsr: true,
+          emailAlertsPolicyReminders: true,
+          emailAlertsBadges: true,
         };
       } else {
         config[key] = null;
@@ -106,7 +113,10 @@ export async function POST(request: NextRequest) {
 
     const token = request.cookies.get('auth-token')?.value;
     const payload = verifyToken(token!);
-    const adminUserId = payload?.id || 1;
+    if (!payload?.id) {
+      return errorResponse('Access denied. Invalid session.', 401, 'UNAUTHORIZED');
+    }
+    const adminUserId = payload.id;
 
     const updates = body as Record<string, unknown>;
 

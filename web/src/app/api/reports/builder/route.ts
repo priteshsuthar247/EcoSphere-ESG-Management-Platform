@@ -31,7 +31,15 @@ export async function POST(request: NextRequest) {
       return errorResponse('Invalid payload', 400);
     }
 
-    const { module, departmentId, startDate, endDate, employeeId } = body as Record<string, unknown>;
+    const {
+      module,
+      departmentId,
+      startDate,
+      endDate,
+      employeeId,
+      challengeId,
+      categoryId,
+    } = body as Record<string, unknown>;
 
     // Prepare structured filters
     const filters: {
@@ -40,6 +48,8 @@ export async function POST(request: NextRequest) {
       startDate?: string | null;
       endDate?: string | null;
       employeeId?: number | null;
+      challengeId?: number | null;
+      categoryId?: number | null;
     } = {};
 
     if (module && ['environmental', 'social', 'governance', 'all'].includes(module as string)) {
@@ -56,6 +66,12 @@ export async function POST(request: NextRequest) {
     }
     if (typeof employeeId === 'number') {
       filters.employeeId = employeeId;
+    }
+    if (typeof challengeId === 'number') {
+      filters.challengeId = challengeId;
+    }
+    if (typeof categoryId === 'number') {
+      filters.categoryId = categoryId;
     }
 
     const rows = await buildCustomReport(filters);

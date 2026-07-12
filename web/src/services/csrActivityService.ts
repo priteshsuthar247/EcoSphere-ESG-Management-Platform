@@ -68,7 +68,7 @@ export async function listCsrActivities(options?: {
 }): Promise<CsrActivity[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('a.status = ?');
@@ -175,7 +175,7 @@ export async function updateCsrActivity(
 ): Promise<CsrActivity | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     if (input.title !== undefined) {
       fields.push('title = ?');

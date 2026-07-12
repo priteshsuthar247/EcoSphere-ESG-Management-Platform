@@ -67,6 +67,18 @@ export async function findUserById(id: number): Promise<PublicUser | null> {
 }
 
 /**
+ * True if any user row (any status) already owns this email.
+ * findUserByEmail only matches active users — inactive/archived must still block signup.
+ */
+export async function emailExists(email: string): Promise<boolean> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    'SELECT id FROM users WHERE email = ? LIMIT 1',
+    [email.toLowerCase().trim()],
+  );
+  return rows.length > 0;
+}
+
+/**
  * Create a new user with hashed password.
  * New sign-ups are always assigned 'employee' role for security.
  */
@@ -77,9 +89,7 @@ export async function createUser(params: {
 }): Promise<PublicUser> {
   const { name, email, password } = params;
 
-  // Check if email already exists
-  const existing = await findUserByEmail(email);
-  if (existing) {
+  if (await emailExists(email)) {
     throw new Error('EMAIL_ALREADY_EXISTS');
   }
 
@@ -100,6 +110,11 @@ export async function createUser(params: {
     return newUser;
   } catch (err) {
     if ((err as Error).message === 'EMAIL_ALREADY_EXISTS') throw err;
+    // Unique index race
+    const code = (err as { code?: string }).code;
+    if (code === 'ER_DUP_ENTRY') {
+      throw new Error('EMAIL_ALREADY_EXISTS');
+    }
     logger.error('createUser failed', { error: (err as Error).message });
     throw err;
   }
@@ -142,10 +157,15 @@ export interface AdminUserListEntry extends RowDataPacket {
 
 /**
  * Get all users with their associated department names.
+ * @param options.excludeAdminRoles — when true (CEO views), hide system admin accounts
  */
-export async function getAllUsers(): Promise<AdminUserListEntry[]> {
+export async function getAllUsers(options?: {
+  excludeAdminRoles?: boolean;
+}): Promise<AdminUserListEntry[]> {
   try {
-    const [rows] = await pool.execute<AdminUserListEntry[]>(`
+    const excludeAdmin = options?.excludeAdminRoles === true;
+    const [rows] = await pool.execute<AdminUserListEntry[]>(
+      `
       SELECT 
         u.id, 
         u.name, 
@@ -160,13 +180,36 @@ export async function getAllUsers(): Promise<AdminUserListEntry[]> {
         u.last_login_at
       FROM users u
       LEFT JOIN departments d ON d.id = u.department_id
+      ${excludeAdmin ? "WHERE u.role <> 'admin'" : ''}
       ORDER BY u.id ASC
-    `);
+    `,
+    );
     return rows;
   } catch (err) {
     logger.error('getAllUsers failed', { error: (err as Error).message });
     throw err;
   }
+}
+
+/**
+ * Count active admin accounts (for last-admin protection).
+ */
+export async function countActiveAdmins(): Promise<number> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin' AND status = 'active'`,
+  );
+  return Number(rows[0]?.cnt ?? 0);
+}
+
+export async function getUserRoleAndStatus(
+  userId: number,
+): Promise<{ role: UserRole; status: string } | null> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    'SELECT role, status FROM users WHERE id = ? LIMIT 1',
+    [userId],
+  );
+  if (!rows[0]) return null;
+  return { role: rows[0].role as UserRole, status: String(rows[0].status) };
 }
 
 /**
@@ -181,8 +224,25 @@ export async function updateUserAdmin(
   }
 ): Promise<boolean> {
   try {
+    const current = await getUserRoleAndStatus(userId);
+    if (!current) return false;
+
+    // Never leave the platform without an active admin
+    const demotingAdmin =
+      current.role === 'admin' &&
+      current.status === 'active' &&
+      ((data.role !== undefined && data.role !== 'admin') ||
+        (data.status !== undefined && data.status !== 'active'));
+
+    if (demotingAdmin) {
+      const admins = await countActiveAdmins();
+      if (admins <= 1) {
+        throw new Error('LAST_ADMIN_PROTECTED');
+      }
+    }
+
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | null> = [];
 
     if (data.role !== undefined) {
       fields.push('role = ?');
@@ -203,11 +263,12 @@ export async function updateUserAdmin(
 
     const [result] = await pool.execute<ResultSetHeader>(
       `UPDATE users SET ${fields.join(', ')} WHERE id = ?`,
-      values
+      values,
     );
 
     return result.affectedRows > 0;
   } catch (err) {
+    if ((err as Error).message === 'LAST_ADMIN_PROTECTED') throw err;
     logger.error('updateUserAdmin failed', { error: (err as Error).message, userId });
     throw err;
   }

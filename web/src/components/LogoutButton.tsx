@@ -1,19 +1,20 @@
 "use client";
-// Logout button — Notion-inspired utility style
+// Logout button — icon-only when sidebar is collapsed
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
-export default function LogoutButton() {
-  const router = useRouter();
+export default function LogoutButton({ collapsed = false }: { collapsed?: boolean }) {
   const [loading, setLoading] = useState(false);
 
   async function handleLogout() {
     setLoading(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
     } finally {
-      router.push("/login");
+      window.location.assign("/login");
     }
   }
 
@@ -22,9 +23,35 @@ export default function LogoutButton() {
       id="logout-btn"
       onClick={handleLogout}
       disabled={loading}
-      className="btn btn-ghost btn-sm btn-full"
+      className={`btn btn-ghost btn-sm btn-full${collapsed ? " logout-btn-icon" : ""}`}
+      title="Sign out"
+      aria-label="Sign out"
     >
-      {loading ? "Signing out…" : "Sign out"}
+      {collapsed ? (
+        loading ? (
+          "…"
+        ) : (
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        )
+      ) : loading ? (
+        "Signing out…"
+      ) : (
+        "Sign out"
+      )}
     </button>
   );
 }

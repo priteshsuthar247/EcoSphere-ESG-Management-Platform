@@ -69,6 +69,11 @@ export async function syncOverdueFlags(): Promise<void> {
        WHERE due_date < CURDATE()
          AND status IN ('open', 'in_progress')`,
     );
+    // Feed notification system for newly overdue items
+    const { notifyNewlyOverdueCompliance } = await import(
+      '@/services/notificationService'
+    );
+    await notifyNewlyOverdueCompliance();
   } catch (err) {
     logger.warn('syncOverdueFlags failed', { error: (err as Error).message });
   }
@@ -84,7 +89,7 @@ export async function listComplianceIssues(options?: {
     await syncOverdueFlags();
 
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('ci.status = ?');
@@ -195,6 +200,24 @@ export async function createComplianceIssue(
     const created = await getComplianceIssueById(result.insertId);
     if (!created) throw new Error('COMPLIANCE_CREATE_FAILED');
     logger.info('Compliance issue created', { id: created.id, severity: created.severity });
+
+    // Notify assigned owner (in-app + email if enabled)
+    try {
+      const { notifyUser } = await import('@/services/notificationService');
+      await notifyUser({
+        userId: input.owner_user_id,
+        type: 'new_compliance_issue',
+        title: flagged ? `Overdue: ${created.title}` : `New compliance issue: ${created.title}`,
+        message: `You are the owner of compliance issue "${created.title}" (severity: ${created.severity}, due ${due}).`,
+        actionUrl: '/dashboard/governance/compliance',
+        relatedEntityType: 'compliance_issue',
+        relatedEntityId: created.id,
+        emailSubject: `Compliance issue assigned: ${created.title}`,
+      });
+    } catch {
+      // non-fatal
+    }
+
     return created;
   } catch (err) {
     logger.error('createComplianceIssue failed', { error: (err as Error).message });
@@ -232,21 +255,20 @@ export async function updateComplianceIssue(
     let resolvedAt: string | null =
       existing.resolved_at === null ? null : String(existing.resolved_at);
     let flagged = Number(existing.flagged_overdue);
+    let status: ComplianceStatus = next.status;
 
-    if (next.status === 'resolved') {
+    if (status === 'resolved') {
       resolvedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
       flagged = 0;
-    } else if (
-      next.due_date < new Date().toISOString().slice(0, 10) &&
-      next.status !== 'resolved'
-    ) {
-      next.status = 'overdue';
+    } else if (next.due_date < new Date().toISOString().slice(0, 10)) {
+      status = 'overdue';
       flagged = 1;
       resolvedAt = null;
-    } else if (next.status !== 'resolved') {
+    } else {
       resolvedAt = null;
-      if (next.status !== 'overdue') flagged = 0;
+      if (status !== 'overdue') flagged = 0;
     }
+    next.status = status;
 
     await pool.execute(
       `UPDATE compliance_issues
@@ -262,7 +284,7 @@ export async function updateComplianceIssue(
         next.department_id,
         next.owner_user_id,
         next.due_date,
-        next.status,
+        status,
         next.resolution_notes,
         resolvedAt,
         flagged,
@@ -298,7 +320,7 @@ export async function getComplianceStats(options?: {
   try {
     await syncOverdueFlags();
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('department_id = ?');
       params.push(options.departmentId);

@@ -1,8 +1,11 @@
 "use client";
 // src/app/dashboard/environmental/carbon/page.tsx
-// Carbon Transactions log — TerminalUI
+// Carbon Transactions log
 
 import { useCallback, useEffect, useState } from "react";
+import Modal from "@/components/Modal";
+import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import { ChartCard, SimpleBarChart } from "@/components/StatCharts";
 
 interface CarbonTx {
   id: number;
@@ -82,6 +85,8 @@ export default function CarbonTransactionsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
@@ -179,7 +184,8 @@ export default function CarbonTransactionsPage() {
           CARBON TRANSACTIONS
         </h1>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Log operational activity and calculate emissions via emission factors.
+          Log purchase, manufacturing, expense, or fleet activity. When auto emission calculation is enabled in ESG settings,
+          emissions are computed from quantity × emission factor (no manual kgCO₂e required).
         </p>
       </div>
 
@@ -187,17 +193,17 @@ export default function CarbonTransactionsPage() {
         {"─".repeat(60)}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
+      <div className="stats-grid" style={{ marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TOTAL EMISSIONS"}</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--color-primary)" }}>
+          <div style={{ fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>Total emissions</div>
+          <div style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-primary)" }}>
             {summary ? Number(summary.total_emissions).toFixed(2) : "–"}
             <span style={{ fontSize: "12px", color: "var(--color-text-dim)", marginLeft: "6px" }}>kgCO₂e</span>
           </div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TRANSACTIONS"}</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>
+          <div style={{ fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>Transactions</div>
+          <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>
             {summary?.transaction_count ?? "–"}
           </div>
         </div>
@@ -205,14 +211,31 @@ export default function CarbonTransactionsPage() {
           const row = summary?.by_scope.find((x) => x.scope === s);
           return (
             <div key={s} className="stat-card">
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// SCOPE "}{s}</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "var(--color-secondary)" }}>
+              <div style={{ fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>Scope {s}</div>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-secondary)" }}>
                 {row ? Number(row.emissions).toFixed(1) : "0.0"}
               </div>
             </div>
           );
         })}
       </div>
+
+      {summary && (
+        <div className="charts-row" style={{ marginBottom: "var(--space-6)" }}>
+          <ChartCard title="Emissions by scope" subtitle="kgCO₂e breakdown">
+            <SimpleBarChart
+              data={(["1", "2", "3"] as const).map((s, i) => {
+                const row = summary.by_scope.find((x) => String(x.scope) === s);
+                return {
+                  label: `Scope ${s}`,
+                  value: row ? Number(row.emissions) : 0,
+                  color: ["#0075DE", "#0D9488", "#F59E0B"][i],
+                };
+              })}
+            />
+          </ChartCard>
+        </div>
+      )}
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
@@ -225,36 +248,50 @@ export default function CarbonTransactionsPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: "var(--space-4)" }}>
-        <button type="button" className="btn btn-primary btn-md btn-cli" onClick={() => { setShowForm(true); setError(""); setSuccess(""); }}>
-          LOG TRANSACTION
-        </button>
-      </div>
+      <TableFilters
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search reference, factor, dept…"
+        status={sourceFilter}
+        onStatusChange={setSourceFilter}
+        statusOptions={[
+          { value: "all", label: "All sources" },
+          ...SOURCE_TYPES.map((s) => ({ value: s, label: s })),
+        ]}
+        extra={
+          <button type="button" className="btn btn-primary btn-md" onClick={() => { setShowForm(true); setError(""); setSuccess(""); }}>
+            Log transaction
+          </button>
+        }
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: showForm ? "1fr minmax(300px, 400px)" : "1fr", gap: "var(--space-6)" }}>
+      <div>
         <div>
-          <div className="card-header">TRANSACTION LEDGER</div>
+          <div className="card-header">Transaction ledger</div>
           {loading ? (
             <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
               <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING LEDGER...</span>
+              <span style={{ marginLeft: "var(--space-3)" }}>Loading ledger…</span>
             </div>
           ) : items.length === 0 ? (
-            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              {"// No carbon transactions logged yet."}
+            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+              No carbon transactions logged yet.
             </div>
           ) : (
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    {["ID", "DATE", "SOURCE", "FACTOR", "QTY", "EMISSIONS", "SCOPE", "DEPT", "PRODUCT", "BY"].map((h) => (
+                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
+                    {["ID", "Date", "Source", "Factor", "Qty", "Emissions", "Scope", "Dept", "Product", "By"].map((h) => (
                       <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((tx) => (
+                  {items.filter((tx) =>
+                    (sourceFilter === "all" || tx.source_type === sourceFilter) &&
+                    matchesSearch(search, [tx.id, tx.source_type, tx.emission_factor_name, tx.department_name, tx.product_name, tx.source_reference, tx.created_by_name])
+                  ).map((tx) => (
                     <tr key={tx.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                       <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(tx.id).padStart(3, "0")}</td>
                       <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
@@ -312,27 +349,30 @@ export default function CarbonTransactionsPage() {
           )}
         </div>
 
-        {showForm && (
-          <div className="card-elevated" style={{ height: "fit-content" }}>
-            <div className="card-header">LOG CARBON DATA</div>
+        <Modal
+          open={showForm}
+          title="Log carbon data"
+          onClose={() => { if (!submitting) setShowForm(false); }}
+          width={640}
+        >
             <form onSubmit={handleSubmit}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-date">DATE</label>
-                  <input id="ct-date" type="date" className="form-input" value={form.transaction_date} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} required disabled={submitting} style={{ paddingLeft: "12px" }} />
+                  <label className="form-label required" htmlFor="ct-date">Date</label>
+                  <input id="ct-date" type="date" className="form-input" value={form.transaction_date} onChange={(e) => setForm({ ...form, transaction_date: e.target.value })} required disabled={submitting} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-source">SOURCE TYPE</label>
-                  <select id="ct-source" value={form.source_type} onChange={(e) => setForm({ ...form, source_type: e.target.value })} style={selectStyle} disabled={submitting}>
+                  <label className="form-label required" htmlFor="ct-source">Source type</label>
+                  <select id="ct-source" className="form-input" value={form.source_type} onChange={(e) => setForm({ ...form, source_type: e.target.value })} disabled={submitting}>
                     {SOURCE_TYPES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-factor">EMISSION FACTOR</label>
-                  <select id="ct-factor" value={form.emission_factor_id} onChange={(e) => setForm({ ...form, emission_factor_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">{"// manual emissions (no factor)"}</option>
+                  <label className="form-label" htmlFor="ct-factor">Emission factor</label>
+                  <select id="ct-factor" className="form-input" value={form.emission_factor_id} onChange={(e) => setForm({ ...form, emission_factor_id: e.target.value })} disabled={submitting}>
+                    <option value="">Manual emissions (no factor)</option>
                     {(meta?.emission_factors ?? []).map((f) => (
                       <option key={f.id} value={f.id}>
                         {f.name} · S{f.scope ?? "?"} · {Number(f.value_kgco2e_per_unit).toFixed(4)}/{f.unit}
@@ -341,48 +381,42 @@ export default function CarbonTransactionsPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-qty">QUANTITY</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ct-qty" className="form-input" type="number" step="any" min="0.0001" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required disabled={submitting} />
-                  </div>
+                  <label className="form-label required" htmlFor="ct-qty">Quantity</label>
+                  <input id="ct-qty" className="form-input" type="number" step="any" min="0.0001" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required disabled={submitting} />
                   {previewEmissions !== null && (
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-tertiary)", marginTop: "4px" }}>
-                      {"// calc: "}{previewEmissions.toFixed(4)}{" kgCO₂e"}
+                    <div style={{ fontSize: "12px", color: "var(--color-primary)", marginTop: "4px" }}>
+                      Calc: {previewEmissions.toFixed(4)} kgCO₂e
                     </div>
                   )}
                 </div>
                 {!form.emission_factor_id && (
                   <div className="form-group">
-                    <label className="form-label" htmlFor="ct-em">MANUAL EMISSIONS (kgCO₂e)</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="ct-em" className="form-input" type="number" step="any" min="0" value={form.calculated_emissions_kgco2e} onChange={(e) => setForm({ ...form, calculated_emissions_kgco2e: e.target.value })} required disabled={submitting} />
-                    </div>
+                    <label className="form-label required" htmlFor="ct-em">Manual emissions (kgCO₂e)</label>
+                    <input id="ct-em" className="form-input" type="number" step="any" min="0" value={form.calculated_emissions_kgco2e} onChange={(e) => setForm({ ...form, calculated_emissions_kgco2e: e.target.value })} required disabled={submitting} />
                   </div>
                 )}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-scope">SCOPE OVERRIDE</label>
-                  <select id="ct-scope" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">{"// inherit from factor"}</option>
+                  <label className="form-label" htmlFor="ct-scope">Scope override</label>
+                  <select id="ct-scope" className="form-input" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} disabled={submitting}>
+                    <option value="">Inherit from factor</option>
                     <option value="1">Scope 1</option>
                     <option value="2">Scope 2</option>
                     <option value="3">Scope 3</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-dept">DEPARTMENT</label>
-                  <select id="ct-dept" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">{"// none"}</option>
+                  <label className="form-label" htmlFor="ct-dept">Department</label>
+                  <select id="ct-dept" className="form-input" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} disabled={submitting}>
+                    <option value="">None</option>
                     {(meta?.departments ?? []).map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-prod">PRODUCT (optional)</label>
-                  <select id="ct-prod" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">{"// none"}</option>
+                  <label className="form-label" htmlFor="ct-prod">Product (optional)</label>
+                  <select id="ct-prod" className="form-input" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} disabled={submitting}>
+                    <option value="">None</option>
                     {(meta?.products ?? []).map((p) => (
                       <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ""}</option>
                     ))}
@@ -390,8 +424,8 @@ export default function CarbonTransactionsPage() {
                 </div>
                 {form.product_id && (
                   <div className="form-group">
-                    <label className="form-label" htmlFor="ct-lc">LIFECYCLE STAGE</label>
-                    <select id="ct-lc" value={form.lifecycle_stage} onChange={(e) => setForm({ ...form, lifecycle_stage: e.target.value })} style={selectStyle} disabled={submitting}>
+                    <label className="form-label" htmlFor="ct-lc">Lifecycle stage</label>
+                    <select id="ct-lc" className="form-input" value={form.lifecycle_stage} onChange={(e) => setForm({ ...form, lifecycle_stage: e.target.value })} disabled={submitting}>
                       {LIFECYCLE_STAGES.map((s) => (
                         <option key={s.value || "none"} value={s.value}>{s.label}</option>
                       ))}
@@ -399,38 +433,28 @@ export default function CarbonTransactionsPage() {
                   </div>
                 )}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-ref">REFERENCE</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ct-ref" className="form-input" value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} disabled={submitting} placeholder="PO / invoice / trip id" />
-                  </div>
+                  <label className="form-label" htmlFor="ct-ref">Reference</label>
+                  <input id="ct-ref" className="form-input" value={form.source_reference} onChange={(e) => setForm({ ...form, source_reference: e.target.value })} disabled={submitting} placeholder="PO / invoice / trip id" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-desc">DESCRIPTION</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ct-desc" className="form-input" value={form.source_description} onChange={(e) => setForm({ ...form, source_description: e.target.value })} disabled={submitting} />
-                  </div>
+                  <label className="form-label" htmlFor="ct-desc">Description</label>
+                  <input id="ct-desc" className="form-input" value={form.source_description} onChange={(e) => setForm({ ...form, source_description: e.target.value })} disabled={submitting} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="ct-notes">NOTES</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ct-notes" className="form-input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} disabled={submitting} />
-                  </div>
+                  <label className="form-label" htmlFor="ct-notes">Notes</label>
+                  <input id="ct-notes" className="form-input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} disabled={submitting} />
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                    {submitting ? "LOGGING" : "COMMIT"}
+                  <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                    {submitting ? "Logging…" : "Save transaction"}
                   </button>
                   <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => setShowForm(false)} disabled={submitting}>
-                    CANCEL
+                    Cancel
                   </button>
                 </div>
               </div>
             </form>
-          </div>
-        )}
+        </Modal>
       </div>
     </div>
   );

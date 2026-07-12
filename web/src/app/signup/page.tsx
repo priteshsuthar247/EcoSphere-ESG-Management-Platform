@@ -39,12 +39,33 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
+function EyeIcon({ off }: { off?: boolean }) {
+  if (off) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -94,7 +115,14 @@ export default function SignupPage() {
       }
 
       setSuccess("Account created. Redirecting…");
-      setTimeout(() => router.push(json.data.redirectTo), 1000);
+      // Hard navigation so JWT cookie applies and no prior session RSC cache is reused
+      const target =
+        typeof json.data?.redirectTo === "string" && json.data.redirectTo.startsWith("/dashboard/")
+          ? json.data.redirectTo
+          : "/dashboard/employee";
+      setTimeout(() => {
+        window.location.assign(target);
+      }, 600);
     } catch {
       setError("Network error. Check your connection.");
       setLoading(false);
@@ -212,17 +240,29 @@ export default function SignupPage() {
                 <label className="form-label" htmlFor="signup-password">
                   Password
                 </label>
-                <input
-                  id="signup-password"
-                  className="form-input"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Min 8 chars, A–Z, a–z, 0–9"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                />
+                <div className="password-field">
+                  <input
+                    id="signup-password"
+                    className="form-input"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Min 8 chars, A–Z, a–z, 0–9"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword((v) => !v)}
+                    disabled={loading}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    <EyeIcon off={showPassword} />
+                  </button>
+                </div>
                 <PasswordStrength password={password} />
               </div>
 
@@ -230,17 +270,29 @@ export default function SignupPage() {
                 <label className="form-label" htmlFor="signup-confirm">
                   Confirm password
                 </label>
-                <input
-                  id="signup-confirm"
-                  className={`form-input${confirm && confirm !== password ? " error" : ""}`}
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Re-enter password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  required
-                  disabled={loading}
-                />
+                <div className="password-field">
+                  <input
+                    id="signup-confirm"
+                    className={`form-input${confirm && confirm !== password ? " error" : ""}`}
+                    type={showConfirm ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="Re-enter password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    disabled={loading}
+                    aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                    title={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                  >
+                    <EyeIcon off={showConfirm} />
+                  </button>
+                </div>
                 {confirm && confirm !== password && (
                   <div className="helper-text error">Passwords do not match</div>
                 )}

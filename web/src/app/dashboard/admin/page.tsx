@@ -85,14 +85,7 @@ export default async function AdminDashboard() {
         </p>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: "var(--space-4)",
-          marginBottom: "var(--space-8)",
-        }}
-      >
+      <div className="stats-grid" style={{ marginBottom: "var(--space-8)" }}>
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
             <div

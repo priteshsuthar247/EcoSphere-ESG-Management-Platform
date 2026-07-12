@@ -127,7 +127,7 @@ export default async function EmployeeDashboard() {
             { label: "Redeem Rewards",          href: "/dashboard/gamification/rewards" },
             { label: "Read Policies",           href: "/dashboard/governance/policies" },
           ].map((a) => (
-            <a key={a.label} href={a.href} className="btn btn-secondary btn-md btn-cli">
+            <a key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
             </a>
           ))}

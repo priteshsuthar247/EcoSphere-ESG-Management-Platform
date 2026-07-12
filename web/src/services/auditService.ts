@@ -68,7 +68,7 @@ export async function listAudits(options?: {
 }): Promise<Audit[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('a.status = ?');
@@ -159,7 +159,7 @@ export async function updateAudit(
 ): Promise<Audit | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     const map: Array<[keyof UpdateAuditInput, string, boolean]> = [
       ['title', 'title', true],

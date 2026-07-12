@@ -2,6 +2,7 @@
 // Policy Acknowledgements — TerminalUI
 
 import { useCallback, useEffect, useState } from "react";
+import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
 
 interface Ack {
   id: number;
@@ -39,6 +40,9 @@ export default function AcknowledgementsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [coverageSearch, setCoverageSearch] = useState("");
+  const [coverageStatus, setCoverageStatus] = useState("all");
+  const [logSearch, setLogSearch] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -64,9 +68,6 @@ export default function AcknowledgementsPage() {
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # GOVERNANCE / POLICY-ACKNOWLEDGEMENTS
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           POLICY ACKNOWLEDGEMENTS
         </h1>
@@ -81,7 +82,7 @@ export default function AcknowledgementsPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
+          <span>{error}</span>
         </div>
       )}
 
@@ -93,7 +94,7 @@ export default function AcknowledgementsPage() {
           { label: "PENDING", value: stats?.pending_acks, color: "var(--color-error)" },
         ].map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// {s.label}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{s.label}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
           </div>
         ))}
@@ -102,28 +103,41 @@ export default function AcknowledgementsPage() {
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING...</span>
+          <span style={{ marginLeft: "var(--space-3)" }}>Loading…</span>
         </div>
       ) : (
         <>
           <div style={{ marginBottom: "var(--space-8)" }}>
-            <div className="card-header">COVERAGE MATRIX</div>
-            {coverage.length === 0 ? (
-              <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-                // No policies requiring acknowledgement.
+            <TableFilters
+              search={coverageSearch}
+              onSearchChange={setCoverageSearch}
+              searchPlaceholder="Search policies…"
+              status={coverageStatus}
+              onStatusChange={setCoverageStatus}
+              statusOptions={[
+                { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+                { value: "draft", label: "Draft" },
+              ]}
+            />
+            <div className="card-header">Coverage matrix</div>
+            {coverage.filter((c) => matchesStatus(coverageStatus, c.status) && matchesSearch(coverageSearch, [c.title, c.version, c.status])).length === 0 ? (
+              <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+                No policies requiring acknowledgement.
               </div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      {["POLICY", "VERSION", "STATUS", "ACKED", "ACTIVE USERS", "COVERAGE"].map((h) => (
+                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
+                      {["Policy", "Version", "Status", "Acked", "Active users", "Coverage"].map((h) => (
                         <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {coverage.map((c) => (
+                    {coverage.filter((c) => matchesStatus(coverageStatus, c.status) && matchesSearch(coverageSearch, [c.title, c.version, c.status])).map((c) => (
                       <tr key={c.policy_id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{c.title}</td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>v{c.version}</td>
@@ -149,23 +163,28 @@ export default function AcknowledgementsPage() {
           </div>
 
           <div>
-            <div className="card-header">ACKNOWLEDGEMENT LOG</div>
-            {items.length === 0 ? (
-              <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-                // No acknowledgements recorded yet.
+            <TableFilters
+              search={logSearch}
+              onSearchChange={setLogSearch}
+              searchPlaceholder="Search acknowledgements by user, policy, dept…"
+            />
+            <div className="card-header">Acknowledgement log</div>
+            {items.filter((a) => matchesSearch(logSearch, [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address])).length === 0 ? (
+              <div style={{ padding: "var(--space-6)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+                No acknowledgements recorded yet.
               </div>
             ) : (
-              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+              <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                      {["ID", "USER", "DEPT", "POLICY", "VERSION", "ACKED AT", "IP"].map((h) => (
+                    <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
+                      {["ID", "User", "Dept", "Policy", "Version", "Acked at", "IP"].map((h) => (
                         <th key={h} style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((a) => (
+                    {items.filter((a) => matchesSearch(logSearch, [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address])).map((a) => (
                       <tr key={a.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(a.id).padStart(3, "0")}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>

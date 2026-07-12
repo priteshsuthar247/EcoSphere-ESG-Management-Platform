@@ -1,8 +1,10 @@
 "use client";
 // src/app/dashboard/environmental/emissions/page.tsx
-// Emission Factors master data — TerminalUI
+// Emission Factors master data
 
 import { useCallback, useEffect, useState } from "react";
+import Modal from "@/components/Modal";
+import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
 
 interface EmissionFactor {
   id: number;
@@ -43,6 +45,8 @@ export default function EmissionFactorsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [scopeFilter, setScopeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -169,9 +173,6 @@ export default function EmissionFactorsPage() {
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ENVIRONMENTAL / EMISSION-FACTORS
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           EMISSION FACTORS
         </h1>
@@ -187,16 +188,16 @@ export default function EmissionFactorsPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"// TOTAL"}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"TOTAL"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.total ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"// ACTIVE"}</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"ACTIVE"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
         </div>
         {(["1", "2", "3"] as const).map((s) => (
           <div key={s} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"// SCOPE "}{s}</div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>Scope {s}</div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-secondary)" }}>
               {stats?.by_scope.find((x) => x.scope === s)?.count ?? 0}
             </div>
@@ -206,171 +207,169 @@ export default function EmissionFactorsPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
+          <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span><span>{success}</span>
+          <span>{success}</span>
         </div>
       )}
 
-      {/* Toolbar */}
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-4)", alignItems: "center" }}>
-        <button type="button" className="btn btn-primary btn-md btn-cli" onClick={openCreate}>
-          NEW FACTOR
-        </button>
-        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--color-text-dim)" }}>{"// SCOPE"}</span>
-          {["all", "1", "2", "3"].map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`chip ${scopeFilter === s ? "chip-green" : "chip-muted"}`}
-              onClick={() => setScopeFilter(s)}
-              style={{ cursor: "pointer" }}
-            >
-              {s === "all" ? "ALL" : `S${s}`}
+      <TableFilters
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search name, category, unit, source…"
+        status={statusFilter}
+        onStatusChange={setStatusFilter}
+        statusOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+          { value: "draft", label: "Draft" },
+          { value: "archived", label: "Archived" },
+        ]}
+        extra={
+          <>
+            <div className="table-filter-field">
+              <label className="form-label">Scope</label>
+              <select className="form-input" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}>
+                <option value="all">All scopes</option>
+                <option value="1">Scope 1</option>
+                <option value="2">Scope 2</option>
+                <option value="3">Scope 3</option>
+              </select>
+            </div>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+              New factor
             </button>
-          ))}
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: showForm ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
-        <div>
-          <div className="card-header">FACTOR REGISTRY</div>
-          {loading ? (
-            <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-              <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING FACTORS...</span>
-            </div>
-          ) : items.length === 0 ? (
-            <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              {"// No emission factors found. Create one to begin carbon accounting."}
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    {["ID", "NAME", "SCOPE", "CATEGORY", "VALUE", "UNIT", "SOURCE", "STATUS", "ACTION"].map((h) => (
-                      <th key={h} style={{ textAlign: h === "ACTION" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid var(--color-border-subtle)", background: editingId === item.id ? "rgba(0, 255, 65, 0.04)" : "transparent" }}>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
-                        <span className={`chip ${item.scope === "1" ? "chip-red" : item.scope === "2" ? "chip-amber" : "chip-cyan"}`}>
-                          {item.scope ? `S${item.scope}` : "—"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.category || "// —"}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>{Number(item.value_kgco2e_per_unit).toFixed(4)}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.unit}</td>
-                      <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{item.source || "—"}</td>
-                      <td style={{ padding: "10px var(--space-3)" }}>
-                        <span className={`chip ${item.status === "active" ? "chip-green" : "chip-muted"}`}>{item.status}</span>
-                      </td>
-                      <td style={{ padding: "10px var(--space-3)", textAlign: "center", whiteSpace: "nowrap" }}>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)} style={{ marginRight: "6px" }}>$ edit</button>
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleStatus(item)}>
-                          {item.status === "active" ? "disable" : "enable"}
-                        </button>
-                      </td>
-                    </tr>
+      <div>
+        <div className="card-header">Factor registry</div>
+        {loading ? (
+          <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
+            <span className="spinner" />
+            <span style={{ marginLeft: "var(--space-3)" }}>Loading factors…</span>
+          </div>
+        ) : items.length === 0 ? (
+          <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
+            No emission factors found. Create one to begin carbon accounting.
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
+                  {["ID", "Name", "Scope", "Category", "Value", "Unit", "Source", "Status", "Action"].map((h) => (
+                    <th key={h} style={{ textAlign: h === "Action" ? "center" : "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {showForm && (
-          <div className="card-elevated" style={{ height: "fit-content" }}>
-            <div className="card-header">{editingId ? `EDIT FACTOR #${editingId}` : "NEW EMISSION FACTOR"}</div>
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ef-name">NAME</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ef-name" className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={submitting} />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ef-scope">SCOPE</label>
-                  <select id="ef-scope" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="1">Scope 1 — Direct</option>
-                    <option value="2">Scope 2 — Energy</option>
-                    <option value="3">Scope 3 — Value chain</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ef-category">CATEGORY</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ef-category" className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. electricity, fleet, waste" disabled={submitting} />
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="ef-value">VALUE (kgCO₂e)</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="ef-value" className="form-input" type="number" step="any" min="0" value={form.value_kgco2e_per_unit} onChange={(e) => setForm({ ...form, value_kgco2e_per_unit: e.target.value })} required disabled={submitting} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="ef-unit">UNIT</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input id="ef-unit" className="form-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} required disabled={submitting} placeholder="kWh, litre, km" />
-                    </div>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ef-source">SOURCE</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="ef-source" className="form-input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="DEFRA, EPA, custom" disabled={submitting} />
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="ef-from">VALID FROM</label>
-                    <input id="ef-from" type="date" className="form-input" value={form.valid_from} onChange={(e) => setForm({ ...form, valid_from: e.target.value })} disabled={submitting} style={{ paddingLeft: "12px" }} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="ef-to">VALID TO</label>
-                    <input id="ef-to" type="date" className="form-input" value={form.valid_to} onChange={(e) => setForm({ ...form, valid_to: e.target.value })} disabled={submitting} style={{ paddingLeft: "12px" }} />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="ef-status">STATUS</label>
-                  <select id="ef-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="active">active</option>
-                    <option value="inactive">inactive</option>
-                    <option value="draft">draft</option>
-                    <option value="archived">archived</option>
-                  </select>
-                </div>
-                <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                    {submitting ? "SAVING" : "COMMIT"}
-                  </button>
-                  <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
-                    CANCEL
-                  </button>
-                </div>
-              </div>
-            </form>
+                </tr>
+              </thead>
+              <tbody>
+                {items.filter((item) =>
+                  matchesStatus(statusFilter, item.status) &&
+                  matchesSearch(search, [item.id, item.name, item.category, item.unit, item.source, item.scope])
+                ).map((item) => (
+                  <tr key={item.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
+                    <td style={{ padding: "10px var(--space-3)" }}>
+                      <span className={`chip ${item.scope === "1" ? "chip-red" : item.scope === "2" ? "chip-amber" : "chip-cyan"}`}>
+                        {item.scope ? `S${item.scope}` : "—"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.category || "—"}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-primary)" }}>{Number(item.value_kgco2e_per_unit).toFixed(4)}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{item.unit}</td>
+                    <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{item.source || "—"}</td>
+                    <td style={{ padding: "10px var(--space-3)" }}>
+                      <span className={`chip ${item.status === "active" ? "chip-green" : "chip-muted"}`}>{item.status}</span>
+                    </td>
+                    <td style={{ padding: "10px var(--space-3)", textAlign: "center", whiteSpace: "nowrap" }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)} style={{ marginRight: "6px" }}>Edit</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleStatus(item)}>
+                        {item.status === "active" ? "Disable" : "Enable"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
+
+      <Modal
+        open={showForm}
+        title={editingId ? `Edit factor #${editingId}` : "New emission factor"}
+        onClose={() => { if (!submitting) { setShowForm(false); setEditingId(null); } }}
+        width={640}
+      >
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ef-name">Name</label>
+              <input id="ef-name" className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ef-scope">Scope</label>
+              <select id="ef-scope" className="form-input" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} disabled={submitting}>
+                <option value="1">Scope 1 — Direct</option>
+                <option value="2">Scope 2 — Energy</option>
+                <option value="3">Scope 3 — Value chain</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ef-category">Category</label>
+              <input id="ef-category" className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. electricity, fleet, waste" disabled={submitting} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              <div className="form-group">
+                <label className="form-label required" htmlFor="ef-value">Value (kgCO₂e)</label>
+                <input id="ef-value" className="form-input" type="number" step="any" min="0" value={form.value_kgco2e_per_unit} onChange={(e) => setForm({ ...form, value_kgco2e_per_unit: e.target.value })} required disabled={submitting} />
+              </div>
+              <div className="form-group">
+                <label className="form-label required" htmlFor="ef-unit">Unit</label>
+                <input id="ef-unit" className="form-input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} required disabled={submitting} placeholder="kWh, litre, km" />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="ef-source">Source</label>
+              <input id="ef-source" className="form-input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="DEFRA, EPA, custom" disabled={submitting} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="ef-from">Valid from</label>
+                <input id="ef-from" type="date" className="form-input" value={form.valid_from} onChange={(e) => setForm({ ...form, valid_from: e.target.value })} disabled={submitting} />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="ef-to">Valid to</label>
+                <input id="ef-to" type="date" className="form-input" value={form.valid_to} onChange={(e) => setForm({ ...form, valid_to: e.target.value })} disabled={submitting} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label required" htmlFor="ef-status">Status</label>
+              <select id="ef-status" className="form-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} disabled={submitting}>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="draft">Draft</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-2)" }}>
+              <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                {submitting ? "Saving…" : editingId ? "Save changes" : "Create factor"}
+              </button>
+              <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => { setShowForm(false); setEditingId(null); }} disabled={submitting}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

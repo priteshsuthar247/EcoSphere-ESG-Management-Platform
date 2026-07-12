@@ -3,6 +3,8 @@
 // Department Management interface for administrators - TerminalUI design system
 
 import { useState, useEffect } from "react";
+import Modal from "@/components/Modal";
+import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
 
 interface Department {
   id: number;
@@ -31,9 +33,10 @@ export default function DepartmentsManagementPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Edit / Add form state
   const [isAdding, setIsAdding] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Form Fields
   const [formName, setFormName] = useState("");
@@ -153,13 +156,16 @@ export default function DepartmentsManagementPage() {
     }
   }
 
+  const filtered = departments.filter(
+    (d) =>
+      matchesStatus(statusFilter, d.status) &&
+      matchesSearch(search, [d.id, d.name, d.code, d.head_user_name, d.parent_department_name, d.location]),
+  );
+  const formOpen = isAdding || editingDept !== null;
+
   return (
     <div>
-      {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / SETTINGS / DEPARTMENTS
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           DEPARTMENT REGISTRY
         </h1>
@@ -174,13 +180,11 @@ export default function DepartmentsManagementPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
           <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
           <span>{success}</span>
         </div>
       )}
@@ -188,76 +192,71 @@ export default function DepartmentsManagementPage() {
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            ACCESSING REGISTRY DATA...
-          </span>
+          <span style={{ marginLeft: "var(--space-3)" }}>Loading departments…</span>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: (isAdding || editingDept) ? "1fr 360px" : "1fr", gap: "var(--space-6)" }}>
-          
-          {/* ── LIST PANEL ── */}
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}>
-              <div className="card-header" style={{ marginBottom: 0 }}>ACTIVE DIRECTORY FILE</div>
-              {!isAdding && !editingDept && (
-                <button onClick={handleAddClick} className="btn btn-primary btn-sm btn-cli">
-                  NEW DEPARTMENT
-                </button>
-              )}
-            </div>
+        <>
+          <TableFilters
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search departments, code, head…"
+            status={statusFilter}
+            onStatusChange={setStatusFilter}
+            statusOptions={[
+              { value: "all", label: "All statuses" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+              { value: "draft", label: "Draft" },
+              { value: "archived", label: "Archived" },
+            ]}
+            extra={
+              <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
+                New department
+              </button>
+            }
+          />
 
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+          <div>
+            <div className="card-header">Active directory</div>
+            <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>CODE</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>NAME</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>HEAD OF DEPT</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>PARENT DEPT</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>LOCATION</th>
-                    <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EMP COUNT</th>
-                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTION</th>
+                  <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
+                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Code</th>
+                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Name</th>
+                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Head</th>
+                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Parent</th>
+                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Location</th>
+                    <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Employees</th>
+                    <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
+                    <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {departments.length === 0 ? (
+                  {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        {"// NO DEPARTMENTS DECLARED IN DATABASE SYSTEM"}
+                        No departments found.
                       </td>
                     </tr>
                   ) : (
-                    departments.map((d) => (
-                      <tr 
-                        key={d.id} 
-                        style={{ 
-                          borderBottom: "1px solid var(--color-border-subtle)", 
-                          background: editingDept?.id === d.id ? "rgba(0, 255, 65, 0.04)" : "transparent"
-                        }}
-                      >
+                    filtered.map((d) => (
+                      <tr key={d.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-secondary)", fontWeight: 700 }}>{d.code}</td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{d.name}</td>
                         <td style={{ padding: "10px var(--space-3)", color: d.head_user_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
-                          {d.head_user_name ? `@ ${d.head_user_name}` : "// NONE"}
+                          {d.head_user_name || "—"}
                         </td>
                         <td style={{ padding: "10px var(--space-3)", color: d.parent_department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
-                          {d.parent_department_name ? `^ ${d.parent_department_name}` : "// NONE"}
+                          {d.parent_department_name || "—"}
                         </td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{d.location || "–"}</td>
                         <td style={{ padding: "10px var(--space-3)", textAlign: "right", color: "var(--color-text-primary)" }}>{d.employee_count}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>
-                          <span className={`chip ${d.status === "active" ? "chip-green" : "chip-muted"}`}>
-                            {d.status}
-                          </span>
+                          <span className={`chip ${d.status === "active" ? "chip-green" : "chip-muted"}`}>{d.status}</span>
                         </td>
                         <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
-                          <button 
-                            onClick={() => handleEditClick(d)} 
-                            className="btn btn-secondary btn-sm"
-                          >
-                            $ edit
-                          </button>
+                          <button type="button" onClick={() => handleEditClick(d)} className="btn btn-secondary btn-sm">Edit</button>
                         </td>
                       </tr>
                     ))
@@ -267,203 +266,71 @@ export default function DepartmentsManagementPage() {
             </div>
           </div>
 
-          {/* ── CREATE / EDIT PANEL ── */}
-          {(isAdding || editingDept) && (
-            <div className="card-elevated" style={{ height: "fit-content" }}>
-              <div className="card-header">
-                {isAdding ? "INITIALIZE DEPARTMENT" : `CONFIGURE BRANCH: ${editingDept?.code}`}
-              </div>
-
-              <form onSubmit={handleSubmit}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  
-                  {/* Name field */}
-                  <div className="form-group">
-                    <label className="form-label">DEPARTMENT NAME</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. Sustainability"
-                        value={formName}
-                        onChange={(e) => setFormName(e.target.value)}
-                        required
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Code field */}
-                  <div className="form-group">
-                    <label className="form-label">REGISTRY CODE</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. SUST"
-                        value={formCode}
-                        onChange={(e) => setFormCode(e.target.value)}
-                        required
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Location field */}
-                  <div className="form-group">
-                    <label className="form-label">PHYSICAL LOCATION</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. Floor 4, Suite B"
-                        value={formLocation}
-                        onChange={(e) => setFormLocation(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Head of Department */}
-                  <div className="form-group">
-                    <label className="form-label">DESIGNATED MANAGER</label>
-                    <div>
-                      <select 
-                        value={formHeadUserId}
-                        onChange={(e) => setFormHeadUserId(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="null">{"// NO MANAGER ASSIGNED"}</option>
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            @ {u.name} ({u.email})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Parent Department */}
-                  <div className="form-group">
-                    <label className="form-label">PARENT BRANCH</label>
-                    <div>
-                      <select 
-                        value={formParentDeptId}
-                        onChange={(e) => setFormParentDeptId(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="null">{"// NO PARENT HIERARCHY"}</option>
-                        {departments
-                          .filter((d) => d.id !== editingDept?.id) // Prevent self-referencing hierarchy
-                          .map((d) => (
-                            <option key={d.id} value={d.id}>
-                              ^ {d.name} ({d.code})
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Description field */}
-                  <div className="form-group">
-                    <label className="form-label">DESCRIPTION COMMENTS</label>
-                    <div className="input-wrapper">
-                      <span className="input-prompt">&gt;</span>
-                      <input 
-                        type="text" 
-                        className="form-input"
-                        placeholder="e.g. ESG Compliance audits & monitoring"
-                        value={formDescription}
-                        onChange={(e) => setFormDescription(e.target.value)}
-                        disabled={submitting}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Status selection */}
-                  <div className="form-group">
-                    <label className="form-label">OPERATIONAL STATUS</label>
-                    <div>
-                      <select 
-                        value={formStatus}
-                        onChange={(e) => setFormStatus(e.target.value)}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          background: "var(--color-bg)",
-                          border: "1px solid var(--color-border-medium)",
-                          color: "var(--color-primary)",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "14px",
-                          outline: "none",
-                          borderRadius: "0px"
-                        }}
-                        disabled={submitting}
-                      >
-                        <option value="active">ACTIVE</option>
-                        <option value="inactive">INACTIVE</option>
-                        <option value="draft">DRAFT</option>
-                        <option value="archived">ARCHIVED</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div 
-                    className="ascii-divider" 
-                    style={{ color: "var(--color-border-subtle)", margin: "var(--space-2) 0" }}
-                  >
-                    {"─".repeat(24)}
-                  </div>
-
-                  {/* Buttons */}
-                  <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                    <button 
-                      type="submit" 
-                      disabled={submitting || !formName || !formCode}
-                      className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`}
-                    >
-                      {submitting ? "COMMITTING" : "COMMIT"}
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={closePanel}
-                      className="btn btn-ghost btn-md btn-full"
-                      disabled={submitting}
-                    >
-                      CANCEL
-                    </button>
-                  </div>
+          <Modal
+            open={formOpen}
+            title={isAdding ? "New department" : `Edit department: ${editingDept?.code ?? ""}`}
+            onClose={() => { if (!submitting) closePanel(); }}
+            width={560}
+          >
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+                <div className="form-group">
+                  <label className="form-label required">Department name</label>
+                  <input type="text" className="form-input" placeholder="e.g. Sustainability" value={formName} onChange={(e) => setFormName(e.target.value)} required disabled={submitting} />
                 </div>
-              </form>
-            </div>
-          )}
-
-        </div>
+                <div className="form-group">
+                  <label className="form-label required">Registry code</label>
+                  <input type="text" className="form-input" placeholder="e.g. SUST" value={formCode} onChange={(e) => setFormCode(e.target.value)} required disabled={submitting} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Physical location</label>
+                  <input type="text" className="form-input" value={formLocation} onChange={(e) => setFormLocation(e.target.value)} disabled={submitting} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Designated manager</label>
+                  <select className="form-input" value={formHeadUserId} onChange={(e) => setFormHeadUserId(e.target.value)} disabled={submitting}>
+                    <option value="null">No manager assigned</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Parent branch</label>
+                  <select className="form-input" value={formParentDeptId} onChange={(e) => setFormParentDeptId(e.target.value)} disabled={submitting}>
+                    <option value="null">No parent hierarchy</option>
+                    {departments
+                      .filter((d) => d.id !== editingDept?.id)
+                      .map((d) => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                      ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input type="text" className="form-input" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} disabled={submitting} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Operational status</label>
+                  <select className="form-input" value={formStatus} onChange={(e) => setFormStatus(e.target.value)} disabled={submitting}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-3)" }}>
+                  <button type="submit" disabled={submitting || !formName || !formCode} className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`}>
+                    {submitting ? "Saving…" : editingDept ? "Save changes" : "Create department"}
+                  </button>
+                  <button type="button" onClick={closePanel} className="btn btn-ghost btn-md btn-full" disabled={submitting}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          </Modal>
+        </>
       )}
     </div>
   );

@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
+import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
 
 interface Participation {
   id: number;
@@ -27,6 +28,8 @@ export default function ChallengeParticipationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     fetchParticipations();
@@ -81,9 +84,6 @@ export default function ChallengeParticipationPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / GAMIFICATION / PARTICIPATION
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           CHALLENGE VERIFICATIONS
         </h1>
@@ -98,13 +98,11 @@ export default function ChallengeParticipationPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
           <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
           <span>{success}</span>
         </div>
       )}
@@ -112,37 +110,50 @@ export default function ChallengeParticipationPage() {
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>
-            RETRIEVING AUDIT VERIFICATIONS LEDGER...
+          <span style={{ marginLeft: "var(--space-3)" }}>
+            Loading verifications…
           </span>
         </div>
       ) : (
         <div>
-          <div className="card-header">PARTICIPATION VERIFICATION RECORDS</div>
+          <TableFilters
+            search={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search employee, challenge…"
+            status={statusFilter}
+            onStatusChange={setStatusFilter}
+            statusOptions={[
+              { value: "all", label: "All statuses" },
+              { value: "pending", label: "Pending" },
+              { value: "approved", label: "Approved" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+          />
+          <div className="card-header">Participation verification records</div>
           
-          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+          <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)", borderRadius: "var(--radius-lg)" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ borderBottom: "1px dashed var(--color-border-medium)", background: "var(--color-surface)" }}>
+                <tr style={{ borderBottom: "1px solid var(--color-border-medium)", background: "var(--color-surface)" }}>
                   <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ID</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>EMPLOYEE</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>CHALLENGE</th>
-                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>REWARD</th>
-                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>PROGRESS</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>SUBMIT DATE</th>
-                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>STATUS</th>
-                  <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>ACTIONS</th>
+                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Employee</th>
+                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Challenge</th>
+                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Reward</th>
+                  <th style={{ textAlign: "right", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Progress</th>
+                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Submit date</th>
+                  <th style={{ textAlign: "left", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Status</th>
+                  <th style={{ textAlign: "center", padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {participations.length === 0 ? (
+                {participations.filter((p) => matchesStatus(statusFilter, p.approval_status) && matchesSearch(search, [p.id, p.user_name, p.user_email, p.challenge_title])).length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                      {"// NO PARTICIPATIONS LOGGED FOR REVIEW"}
+                      No participations logged for review.
                     </td>
                   </tr>
                 ) : (
-                  participations.map((p) => (
+                  participations.filter((p) => matchesStatus(statusFilter, p.approval_status) && matchesSearch(search, [p.id, p.user_name, p.user_email, p.challenge_title])).map((p) => (
                     <tr 
                       key={p.id} 
                       style={{ 
@@ -166,7 +177,7 @@ export default function ChallengeParticipationPage() {
                       <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{p.joined_at ? p.joined_at.split("T")[0] : "–"}</td>
                       <td style={{ padding: "10px var(--space-3)" }}>
                         <span className={`chip ${p.approval_status === "approved" ? "chip-green" : p.approval_status === "pending" ? "chip-cyan" : "chip-red"}`}>
-                          {p.approval_status.toUpperCase()}
+                          {p.approval_status}
                         </span>
                       </td>
                       <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
@@ -175,18 +186,20 @@ export default function ChallengeParticipationPage() {
                         ) : p.approval_status === "pending" ? (
                           <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "center" }}>
                             <button
+                              type="button"
                               onClick={() => handleReview(p.id, "approved")}
                               disabled={processingId !== null}
                               className="btn btn-primary btn-sm"
                             >
-                              [✔] APPROVE
+                              Approve
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleReview(p.id, "rejected")}
                               disabled={processingId !== null}
                               className="btn btn-danger btn-sm"
                             >
-                              [✘] REJECT
+                              Reject
                             </button>
                           </div>
                         ) : (

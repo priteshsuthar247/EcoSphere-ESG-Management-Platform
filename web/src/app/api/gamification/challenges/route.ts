@@ -45,6 +45,12 @@ export async function GET(request: NextRequest) {
       return errorResponse('Access denied. Invalid token.', 401, 'UNAUTHORIZED');
     }
 
+    // Non full-access roles must not see draft/archived challenges
+    const isFullAccess = payload.role === 'admin' || payload.role === 'ceo';
+    const statusFilter = isFullAccess
+      ? ''
+      : " WHERE c.status IN ('active', 'under_review', 'completed')";
+
     const [rows] = await pool.execute<ChallengeDetail[]>(`
       SELECT 
         c.id, 
@@ -61,6 +67,7 @@ export async function GET(request: NextRequest) {
         c.max_participants
       FROM challenges c
       LEFT JOIN categories cat ON cat.id = c.category_id
+      ${statusFilter}
       ORDER BY c.id DESC
     `);
 

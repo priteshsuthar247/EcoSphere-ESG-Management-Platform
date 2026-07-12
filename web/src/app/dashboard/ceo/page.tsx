@@ -4,6 +4,12 @@
 import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
+import { ChartCard, SimpleBarChart } from "@/components/StatCharts";
+import {
+  getOrgOverallEsgScore,
+  getLatestDepartmentScores,
+  recalculateDepartmentEsgScores,
+} from "@/services/esgScoreService";
 
 interface ESGStats extends RowDataPacket {
   avg_env: number | null;
@@ -49,13 +55,48 @@ async function getCEOStats() {
 export default async function CEODashboard() {
   const headersList = headers();
   const userName = headersList.get("x-user-name") ?? "CEO";
-  const { scores, topDepts } = await getCEOStats();
+  let { scores, topDepts } = await getCEOStats();
 
+  // Prefer live scoring engine; auto-run if no rows yet
+  let overall = await getOrgOverallEsgScore();
+  let liveDepts = await getLatestDepartmentScores();
+  if (liveDepts.length === 0) {
+    try {
+      liveDepts = await recalculateDepartmentEsgScores();
+      overall = await getOrgOverallEsgScore();
+    } catch {
+      // keep SQL fallbacks
+    }
+  }
+  if (liveDepts.length > 0) {
+    topDepts = liveDepts.slice(0, 5).map((d) => ({
+      name: d.department_name,
+      total_score: d.total_score,
+    })) as typeof topDepts;
+  }
+
+  const useLive = liveDepts.length > 0;
   const esgMetrics = [
-    { label: "Environmental", value: scores?.avg_env  ?? "–", color: "var(--color-primary)" },
-    { label: "Social",        value: scores?.avg_social ?? "–", color: "var(--color-accent-teal)" },
-    { label: "Governance",    value: scores?.avg_gov  ?? "–", color: "var(--color-secondary)" },
-    { label: "Overall ESG",   value: scores?.avg_total ?? "–", color: "var(--color-primary)" },
+    {
+      label: "Environmental",
+      value: useLive ? overall.environmental : (scores?.avg_env ?? "–"),
+      color: "var(--color-primary)",
+    },
+    {
+      label: "Social",
+      value: useLive ? overall.social : (scores?.avg_social ?? "–"),
+      color: "var(--color-accent-teal)",
+    },
+    {
+      label: "Governance",
+      value: useLive ? overall.governance : (scores?.avg_gov ?? "–"),
+      color: "var(--color-secondary)",
+    },
+    {
+      label: "Overall ESG",
+      value: useLive ? overall.overall : (scores?.avg_total ?? "–"),
+      color: "var(--color-primary)",
+    },
   ];
 
   return (
@@ -66,11 +107,14 @@ export default async function CEODashboard() {
           Executive ESG overview
         </h1>
         <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
-          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>. Company-wide ESG performance.
+          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>. Company-wide ESG performance
+          {useLive
+            ? ` (weights E ${Math.round(overall.weights.environmental * 100)}% / S ${Math.round(overall.weights.social * 100)}% / G ${Math.round(overall.weights.governance * 100)}%).`
+            : "."}
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <div className="stats-grid" style={{ marginBottom: "var(--space-8)" }}>
         {esgMetrics.map((m) => (
           <div key={m.label} className="stat-card">
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
@@ -84,6 +128,19 @@ export default async function CEODashboard() {
             )}
           </div>
         ))}
+      </div>
+
+      <div className="charts-row" style={{ marginBottom: "var(--space-8)" }}>
+        <ChartCard title="ESG pillar scores" subtitle="Company averages / 100">
+          <SimpleBarChart
+            data={[
+              { label: "Env", value: Number(scores?.avg_env ?? 0), color: "#0075DE" },
+              { label: "Social", value: Number(scores?.avg_social ?? 0), color: "#0D9488" },
+              { label: "Gov", value: Number(scores?.avg_gov ?? 0), color: "#F59E0B" },
+              { label: "Overall", value: Number(scores?.avg_total ?? 0), color: "#8B5CF6" },
+            ]}
+          />
+        </ChartCard>
       </div>
 
       <div>

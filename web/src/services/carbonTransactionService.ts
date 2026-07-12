@@ -117,16 +117,38 @@ export async function createCarbonTransaction(
   input: CreateCarbonTransactionInput,
 ): Promise<CarbonTransaction> {
   try {
+    const { getEsgConfig } = await import('@/services/systemConfig');
+    const esg = await getEsgConfig();
+
     let emissions = input.calculated_emissions_kgco2e ?? null;
     let scope = input.scope ?? null;
     const emissionFactorId = input.emission_factor_id ?? null;
+
+    const autoSources: CarbonSourceType[] = [
+      'purchase',
+      'manufacturing',
+      'expense',
+      'fleet',
+    ];
+    const isAutoSource = autoSources.includes(input.source_type);
+
+    // When auto emission calculation is enabled: operational sources must use a factor
+    // and emissions are always qty × factor (no manual override required).
+    if (esg.enableEmissionCalculation && isAutoSource) {
+      if (!emissionFactorId) {
+        throw new Error('EMISSION_FACTOR_REQUIRED');
+      }
+    }
 
     if (emissionFactorId) {
       const factor = await getEmissionFactorById(emissionFactorId);
       if (!factor || factor.status !== 'active') {
         throw new Error('INVALID_EMISSION_FACTOR');
       }
-      emissions = Number(input.quantity) * Number(factor.value_kgco2e_per_unit);
+      // Auto-calc from factor whenever a factor is linked
+      if (esg.enableEmissionCalculation || emissions === null) {
+        emissions = Number(input.quantity) * Number(factor.value_kgco2e_per_unit);
+      }
       if (!scope && factor.scope) {
         scope = factor.scope;
       }

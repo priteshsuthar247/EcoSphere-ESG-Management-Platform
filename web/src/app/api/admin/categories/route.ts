@@ -36,7 +36,8 @@ export async function GET(request: NextRequest) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || !['admin', 'ceo', 'departmental_head'].includes(payload.role)) {
+    // Categories management is full-access only
+    if (!payload || !['admin', 'ceo'].includes(payload.role)) {
       return errorResponse('Access denied. Insufficient privileges.', 403, 'FORBIDDEN');
     }
 

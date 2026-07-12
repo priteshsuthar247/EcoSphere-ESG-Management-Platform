@@ -9,6 +9,7 @@ import { sendMail } from '@/lib/email';
 import { successResponse, errorResponse } from '@/utils/apiResponse';
 import logger from '@/lib/logger';
 import type { ResultSetHeader } from 'mysql2';
+import { escapeHtml } from '@/lib/htmlEscape';
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     const htmlContent = `
       <div style="font-family: monospace; background-color: #0d0d0d; color: #00ff41; padding: 24px; border: 1px solid #444444;">
         <h2 style="color: #00ff41; margin-bottom: 16px;">[ECOSPHERE PASSWORD RESET RELAY]</h2>
-        <p style="color: #8b8b8b;">// Security trigger initiated for user: ${user.name}</p>
+        <p style="color: #8b8b8b;">// Security trigger initiated for user: ${escapeHtml(user.name)}</p>
         <p style="color: #f1f5f9; margin: 16px 0;">
           A request to reset your system password has been received.<br>
           Click the command link below to configure a new credential set:

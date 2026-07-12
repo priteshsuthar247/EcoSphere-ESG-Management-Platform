@@ -9,24 +9,29 @@ import { successResponse, errorResponse } from '@/utils/apiResponse';
 import { verifyToken, type UserRole } from '@/lib/auth';
 import logger from '@/lib/logger';
 
-// Helper to check if request is authorized as admin
-function isAdmin(request: NextRequest): boolean {
-  // Read token from HTTP-only cookie
+function getCaller(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value;
-  if (!token) return false;
+  if (!token) return null;
+  return verifyToken(token);
+}
 
-  const payload = verifyToken(token);
-  // Admin and CEO share full platform privileges
+// Admin and CEO may manage users (CEO cannot see/edit admin accounts)
+function isPrivileged(request: NextRequest): boolean {
+  const payload = getCaller(request);
   return payload?.role === 'admin' || payload?.role === 'ceo';
 }
 
 export async function GET(request: NextRequest) {
   try {
-    if (!isAdmin(request)) {
-      return errorResponse('Access denied. Admin role required.', 403, 'UNAUTHORIZED');
+    const caller = getCaller(request);
+    if (!caller || (caller.role !== 'admin' && caller.role !== 'ceo')) {
+      return errorResponse('Access denied. Admin or CEO role required.', 403, 'UNAUTHORIZED');
     }
 
-    const users = await getAllUsers();
+    // CEO must not see admin accounts in the user list
+    const users = await getAllUsers({
+      excludeAdminRoles: caller.role === 'ceo',
+    });
     return successResponse(users, 'Users retrieved successfully');
   } catch (err) {
     logger.error('GET /api/admin/users error', { error: (err as Error).message });
@@ -36,8 +41,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    if (!isAdmin(request)) {
-      return errorResponse('Access denied. Admin role required.', 403, 'UNAUTHORIZED');
+    const caller = getCaller(request);
+    if (!caller || !isPrivileged(request)) {
+      return errorResponse('Access denied. Admin or CEO role required.', 403, 'UNAUTHORIZED');
     }
 
     let body: unknown;
@@ -51,10 +57,33 @@ export async function PUT(request: NextRequest) {
       return errorResponse('Invalid payload', 400);
     }
 
-    const { userId, role, departmentId, status } = body as Record<string, unknown>;
+    const { userId: rawUserId, role, departmentId, status } = body as Record<string, unknown>;
+    const userId = typeof rawUserId === 'number' ? rawUserId : Number(rawUserId);
 
-    if (typeof userId !== 'number') {
+    if (!Number.isInteger(userId) || userId <= 0) {
       return errorResponse('Valid userId (number) is required', 400, 'VALIDATION_ERROR');
+    }
+
+    // CEO cannot promote anyone to admin, or edit admin users
+    if (caller.role === 'ceo') {
+      if (role === 'admin') {
+        return errorResponse('CEO cannot assign the admin role.', 403, 'FORBIDDEN');
+      }
+      const all = await getAllUsers();
+      const target = all.find((u) => u.id === userId);
+      if (target?.role === 'admin') {
+        return errorResponse('CEO cannot modify admin accounts.', 403, 'FORBIDDEN');
+      }
+    }
+
+    // Block admins from locking themselves out of the last admin seat
+    if (
+      caller.role === 'admin' &&
+      caller.id === userId &&
+      ((typeof role === 'string' && role !== 'admin') ||
+        (typeof status === 'string' && status !== 'active'))
+    ) {
+      // Still allow if other active admins exist — enforced in updateUserAdmin
     }
 
     // Prepare update parameters
@@ -98,10 +127,18 @@ export async function PUT(request: NextRequest) {
       return errorResponse('User not found or no changes made', 404, 'NOT_FOUND');
     }
 
-    logger.info('Admin updated user details', { userId, updates: updateData });
+    logger.info('Admin updated user details', { userId, updates: updateData, by: caller.id });
     return successResponse(null, 'User updated successfully');
   } catch (err) {
-    logger.error('PUT /api/admin/users error', { error: (err as Error).message });
+    const message = (err as Error).message;
+    if (message === 'LAST_ADMIN_PROTECTED') {
+      return errorResponse(
+        'Cannot demote or deactivate the last active admin account.',
+        403,
+        'LAST_ADMIN_PROTECTED',
+      );
+    }
+    logger.error('PUT /api/admin/users error', { error: message });
     return errorResponse('Internal server error', 500, 'SERVER_ERROR');
   }
 }

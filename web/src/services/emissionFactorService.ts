@@ -52,7 +52,7 @@ export async function listEmissionFactors(options?: {
 }): Promise<EmissionFactor[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    const params: Array<string | number | boolean | null> = [];
 
     if (options?.status && options.status !== 'all') {
       clauses.push('status = ?');
@@ -131,7 +131,7 @@ export async function updateEmissionFactor(
 ): Promise<EmissionFactor | null> {
   try {
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | boolean | null> = [];
 
     const map: Array<[keyof UpdateEmissionFactorInput, string]> = [
       ['name', 'name'],

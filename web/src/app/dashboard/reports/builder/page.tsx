@@ -41,8 +41,12 @@ export default function CustomReportBuilderPage() {
   const [filterModule, setFilterModule] = useState("all");
   const [filterDeptId, setFilterDeptId] = useState("all");
   const [filterEmployeeId, setFilterEmployeeId] = useState("all");
+  const [filterChallengeId, setFilterChallengeId] = useState("all");
+  const [filterCategoryId, setFilterCategoryId] = useState("all");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [challenges, setChallenges] = useState<{ id: number; title: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [docType, setDocType] = useState<"csv" | "excel" | "pdf">("csv");
   const [exportDate, setExportDate] = useState("");
 
@@ -55,9 +59,11 @@ export default function CustomReportBuilderPage() {
     setLoadingMetadata(true);
     setError("");
     try {
-      const [deptsRes, usersRes] = await Promise.all([
+      const [deptsRes, usersRes, chRes, catRes] = await Promise.all([
         fetch("/api/admin/departments?dropdown=true"),
-        fetch("/api/admin/users")
+        fetch("/api/admin/users"),
+        fetch("/api/gamification/challenges"),
+        fetch("/api/admin/categories"),
       ]);
 
       const deptsJson = await deptsRes.json();
@@ -72,6 +78,29 @@ export default function CustomReportBuilderPage() {
 
       setDepartments(deptsJson.data);
       setEmployees(usersJson.data);
+
+      if (chRes.ok) {
+        const chJson = await chRes.json();
+        if (chJson.success) {
+          setChallenges(
+            (chJson.data as { id: number; title: string }[]).map((c) => ({
+              id: c.id,
+              title: c.title,
+            })),
+          );
+        }
+      }
+      if (catRes.ok) {
+        const catJson = await catRes.json();
+        if (catJson.success) {
+          setCategories(
+            (catJson.data as { id: number; name: string }[]).map((c) => ({
+              id: c.id,
+              name: c.name,
+            })),
+          );
+        }
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -90,8 +119,10 @@ export default function CustomReportBuilderPage() {
       module: filterModule,
       departmentId: filterDeptId === "all" ? null : parseInt(filterDeptId, 10),
       employeeId: filterEmployeeId === "all" ? null : parseInt(filterEmployeeId, 10),
+      challengeId: filterChallengeId === "all" ? null : parseInt(filterChallengeId, 10),
+      categoryId: filterCategoryId === "all" ? null : parseInt(filterCategoryId, 10),
       startDate: filterStartDate || null,
-      endDate: filterEndDate || null
+      endDate: filterEndDate || null,
     };
 
     try {
@@ -207,9 +238,6 @@ export default function CustomReportBuilderPage() {
 
       {/* Header */}
       <div className="no-print" style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / REPORTS / CUSTOM-BUILDER
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           CUSTOM REPORT BUILDER
         </h1>
@@ -224,13 +252,11 @@ export default function CustomReportBuilderPage() {
 
       {error && (
         <div className="msg msg-error no-print" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
           <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success no-print" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
           <span>{success}</span>
         </div>
       )}
@@ -310,23 +336,47 @@ export default function CustomReportBuilderPage() {
                 <select
                   value={filterEmployeeId}
                   onChange={(e) => setFilterEmployeeId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    background: "var(--color-bg)",
-                    border: "1px solid var(--color-border-medium)",
-                    color: "var(--color-primary)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "13px",
-                    outline: "none",
-                    borderRadius: "0px"
-                  }}
+                  className="form-input"
                   disabled={generating}
                 >
                   <option value="all">ALL USERS</option>
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>
-                      @ {e.name}
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">CHALLENGE</label>
+                <select
+                  value={filterChallengeId}
+                  onChange={(e) => setFilterChallengeId(e.target.value)}
+                  className="form-input"
+                  disabled={generating}
+                >
+                  <option value="all">ALL CHALLENGES</option>
+                  {challenges.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">ESG CATEGORY</label>
+                <select
+                  value={filterCategoryId}
+                  onChange={(e) => setFilterCategoryId(e.target.value)}
+                  className="form-input"
+                  disabled={generating}
+                >
+                  <option value="all">ALL CATEGORIES</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -363,7 +413,7 @@ export default function CustomReportBuilderPage() {
               <button
                 type="submit"
                 disabled={generating}
-                className={`btn btn-primary btn-md btn-cli${generating ? " btn-loading" : ""}`}
+                className={`btn btn-primary btn-md${generating ? " btn-loading" : ""}`}
                 style={{ width: "200px" }}
               >
                 {generating ? "COMPILING" : "COMPILE REPORT"}
@@ -401,7 +451,7 @@ export default function CustomReportBuilderPage() {
                     }
                   }}
                   disabled={exporting || reportRows.length === 0}
-                  className="btn btn-secondary btn-md btn-cli"
+                  className="btn btn-secondary btn-md"
                   style={{ height: "36px", display: "flex", alignItems: "center" }}
                   title={reportRows.length === 0 ? "Compile report first before exporting" : "Export compiled report data"}
                 >
@@ -440,7 +490,7 @@ export default function CustomReportBuilderPage() {
                           </span>
                         </td>
                         <td style={{ padding: "10px var(--space-3)", color: r.department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
-                          {r.department_name ? `> ${r.department_name}` : "// NONE"}
+                          {r.department_name ? `${r.department_name}` : "None"}
                         </td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{r.employee_name || "–"}</td>
                         <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{r.metric_name}</td>

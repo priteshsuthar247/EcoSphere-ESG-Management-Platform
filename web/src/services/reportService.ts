@@ -177,6 +177,8 @@ export async function buildCustomReport(filters: {
   startDate?: string | null;
   endDate?: string | null;
   employeeId?: number | null;
+  challengeId?: number | null;
+  categoryId?: number | null;
 }): Promise<CustomReportRow[]> {
   const c = DB_MAP.carbon;
   const s = DB_MAP.csr;
@@ -276,6 +278,10 @@ export async function buildCustomReport(filters: {
         wheres.push(`p.${s.cols.user_id} = ?`);
         values.push(filters.employeeId);
       }
+      if (filters.categoryId) {
+        wheres.push(`act.category_id = ?`);
+        values.push(filters.categoryId);
+      }
 
       if (wheres.length > 0) {
         query += ` WHERE ${wheres.join(' AND ')}`;
@@ -293,6 +299,63 @@ export async function buildCustomReport(filters: {
           employee_name: r.employee_name,
           metric_name: r.metric_name,
           metric_value: r.metric_value
+        });
+      });
+
+      // Challenge participations (also under social / gamification activity)
+      let chQuery = `
+        SELECT
+          cp.id AS id,
+          COALESCE(cp.completed_at, cp.joined_at) AS date,
+          d.name AS department_name,
+          u.name AS employee_name,
+          CONCAT('Challenge: ', c.title) AS metric_name,
+          CONCAT(cp.approval_status, ' · XP ', COALESCE(cp.xp_awarded, 0)) AS metric_value
+        FROM challenge_participations cp
+        JOIN challenges c ON c.id = cp.challenge_id
+        JOIN users u ON u.id = cp.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+      `;
+      const chWheres: string[] = [];
+      const chValues: (string | number | boolean | Date | null)[] = [];
+      if (filters.departmentId) {
+        chWheres.push(`u.department_id = ?`);
+        chValues.push(filters.departmentId);
+      }
+      if (filters.employeeId) {
+        chWheres.push(`cp.user_id = ?`);
+        chValues.push(filters.employeeId);
+      }
+      if (filters.challengeId) {
+        chWheres.push(`cp.challenge_id = ?`);
+        chValues.push(filters.challengeId);
+      }
+      if (filters.categoryId) {
+        chWheres.push(`c.category_id = ?`);
+        chValues.push(filters.categoryId);
+      }
+      if (filters.startDate) {
+        chWheres.push(`DATE(COALESCE(cp.completed_at, cp.joined_at)) >= ?`);
+        chValues.push(filters.startDate);
+      }
+      if (filters.endDate) {
+        chWheres.push(`DATE(COALESCE(cp.completed_at, cp.joined_at)) <= ?`);
+        chValues.push(filters.endDate);
+      }
+      if (chWheres.length > 0) {
+        chQuery += ` WHERE ${chWheres.join(' AND ')}`;
+      }
+      chQuery += ` ORDER BY date DESC`;
+      const [chRows] = await pool.execute<RowDataPacket[]>(chQuery, chValues);
+      chRows.forEach((r) => {
+        results.push({
+          id: r.id,
+          date: formatReportDate(r.date),
+          module: 'Social',
+          department_name: r.department_name,
+          employee_name: r.employee_name,
+          metric_name: r.metric_name,
+          metric_value: r.metric_value,
         });
       });
     }

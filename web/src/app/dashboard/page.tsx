@@ -1,21 +1,19 @@
 // src/app/dashboard/page.tsx
 // Root /dashboard — redirects to role-specific dashboard via middleware.
-// Middleware already redirects /dashboard/* based on role.
-// This page is a fallback server component.
+// Fallback if middleware did not redirect.
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import type { UserRole } from "@/lib/auth";
+import { getRoleHome, type UserRole } from "@/lib/accessControl";
 
-const ROLE_PATHS: Record<UserRole, string> = {
-  admin: "/dashboard/admin",
-  ceo: "/dashboard/ceo",
-  departmental_head: "/dashboard/departmental-head",
-  employee: "/dashboard/employee",
-};
+export const dynamic = "force-dynamic";
+
+const VALID: UserRole[] = ["admin", "ceo", "departmental_head", "employee"];
 
 export default function DashboardIndexPage() {
   const headersList = headers();
-  const role = (headersList.get("x-user-role") ?? "employee") as UserRole;
-  redirect(ROLE_PATHS[role] ?? "/dashboard/employee");
+  const raw = headersList.get("x-user-role");
+  const role: UserRole =
+    raw && VALID.includes(raw as UserRole) ? (raw as UserRole) : "employee";
+  redirect(getRoleHome(role));
 }

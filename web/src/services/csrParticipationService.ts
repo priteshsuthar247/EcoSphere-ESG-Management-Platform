@@ -234,11 +234,13 @@ export async function reviewParticipation(params: {
   if (existing.approval_status === 'approved') throw new Error('ALREADY_APPROVED');
 
   if (params.decision === 'approved') {
-    if (
-      existing.evidence_required &&
-      !existing.proof_attachment_id &&
-      !params.forceWithoutProof
-    ) {
+    // Activity-level evidence OR global Settings → require CSR evidence
+    const { getEsgConfig } = await import('@/services/systemConfig');
+    const esg = await getEsgConfig();
+    const proofRequired =
+      Boolean(existing.evidence_required) || esg.requireCsrEvidence;
+
+    if (proofRequired && !existing.proof_attachment_id && !params.forceWithoutProof) {
       throw new Error('PROOF_REQUIRED');
     }
 
@@ -302,6 +304,29 @@ export async function reviewParticipation(params: {
     logger.info('CSR participation rejected', {
       participationId: params.participationId,
     });
+  }
+
+  // In-app (+ optional email) decision notification
+  try {
+    const { notifyUser } = await import('@/services/notificationService');
+    const decision = params.decision;
+    await notifyUser({
+      userId: existing.user_id,
+      type: 'csr_approval_decision',
+      title: `CSR activity ${decision}`,
+      message:
+        decision === 'approved'
+          ? `Your CSR participation was approved. Points have been added to your balance.`
+          : `Your CSR participation was rejected${
+              params.rejection_reason ? `: ${params.rejection_reason}` : '.'
+            }`,
+      actionUrl: '/dashboard/social/participation',
+      relatedEntityType: 'csr_participation',
+      relatedEntityId: params.participationId,
+      emailSubject: `CSR participation ${decision}`,
+    });
+  } catch {
+    // non-fatal
   }
 
   const updated = await getParticipationById(params.participationId);

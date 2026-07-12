@@ -1,8 +1,10 @@
 "use client";
 // src/app/dashboard/social/participation/page.tsx
-// Employee CSR Participation — TerminalUI
+// Employee CSR Participation
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Modal from "@/components/Modal";
+import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
 
 interface Participation {
   id: number;
@@ -52,6 +54,7 @@ export default function EmployeeParticipationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [joinActivityId, setJoinActivityId] = useState("");
   const [joining, setJoining] = useState(false);
   const [submitId, setSubmitId] = useState<number | null>(null);
@@ -183,100 +186,100 @@ export default function EmployeeParticipationPage() {
     return "chip-red";
   }
 
-  const joinable = activities.filter((a) => !["cancelled", "archived"].includes(a.status));
+  // Hide activities the current user has already joined from the join selector
+  const joinable = activities.filter((a) => {
+    if (["cancelled", "archived", "completed"].includes(a.status)) return false;
+    if (viewerId == null) return true;
+    return !items.some((p) => p.user_id === viewerId && p.csr_activity_id === a.id);
+  });
 
   return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # SOCIAL / EMPLOYEE-PARTICIPATION
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          EMPLOYEE PARTICIPATION
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "4px" }}>
+          Employee participation
         </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
+        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>
           Join CSR activities, submit proof, and review participation approvals.
         </p>
       </div>
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         {[
-          { label: "TOTAL", value: stats?.total, color: "var(--color-primary)" },
-          { label: "PENDING", value: stats?.pending, color: "var(--color-secondary)" },
-          { label: "APPROVED", value: stats?.approved, color: "var(--color-primary)" },
-          { label: "REJECTED", value: stats?.rejected, color: "var(--color-error)" },
-          { label: "POINTS AWARDED", value: stats?.total_points_awarded, color: "var(--color-tertiary)" },
+          { label: "Total", value: stats?.total, color: "var(--color-primary)" },
+          { label: "Pending", value: stats?.pending, color: "var(--color-secondary)" },
+          { label: "Approved", value: stats?.approved, color: "var(--color-primary)" },
+          { label: "Rejected", value: stats?.rejected, color: "var(--color-error)" },
+          { label: "Points awarded", value: stats?.total_points_awarded, color: "var(--color-tertiary)" },
         ].map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// {s.label}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{s.label}</div>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: s.color }}>{s.value ?? "–"}</div>
           </div>
         ))}
       </div>
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span><span>{error}</span>
+          <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span><span>{success}</span>
+          <span>{success}</span>
         </div>
       )}
 
-      {/* Join + filter toolbar */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="card-elevated">
-          <div className="card-header">JOIN ACTIVITY</div>
+          <div className="card-header">Join activity</div>
           <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            <select value={joinActivityId} onChange={(e) => setJoinActivityId(e.target.value)} style={selectStyle} disabled={joining}>
-              <option value="">// select CSR activity</option>
+            <select value={joinActivityId} onChange={(e) => setJoinActivityId(e.target.value)} className="form-input" disabled={joining}>
+              <option value="">Select a CSR activity</option>
               {joinable.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.title} · {a.points_awarded}pts · {a.status}
+                  {a.title} · {a.points_awarded} pts · {a.status}
                 </option>
               ))}
             </select>
-            <button type="submit" className={`btn btn-primary btn-md btn-cli${joining ? " btn-loading" : ""}`} disabled={joining || !joinActivityId}>
-              {joining ? "JOINING" : "JOIN"}
+            {joinable.length === 0 && (
+              <div style={{ fontSize: 13, color: "var(--color-text-dim)" }}>
+                No open activities left to join (already joined or none available).
+              </div>
+            )}
+            <button type="submit" className={`btn btn-primary btn-md${joining ? " btn-loading" : ""}`} disabled={joining || !joinActivityId}>
+              {joining ? "Joining…" : "Join"}
             </button>
           </form>
         </div>
 
-        <div className="card-elevated">
-          <div className="card-header">FILTER STATUS</div>
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-            {["all", "pending", "approved", "rejected"].map((s) => (
-              <button
-                key={s}
-                type="button"
-                className={`chip ${statusFilter === s ? "chip-green" : "chip-muted"}`}
-                onClick={() => setStatusFilter(s)}
-                style={{ cursor: "pointer" }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: submitId ? "1fr minmax(280px, 360px)" : "1fr", gap: "var(--space-6)" }}>
+      <TableFilters
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search employee, activity…"
+        status={statusFilter}
+        onStatusChange={setStatusFilter}
+        statusOptions={[
+          { value: "all", label: "All statuses" },
+          { value: "pending", label: "Pending" },
+          { value: "approved", label: "Approved" },
+          { value: "rejected", label: "Rejected" },
+        ]}
+      />
+
+      <div>
         <div>
-          <div className="card-header">PARTICIPATION LEDGER</div>
+          <div className="card-header">Participation ledger</div>
           {loading ? (
             <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
               <span className="spinner" />
-              <span style={{ marginLeft: "var(--space-3)", fontFamily: "var(--font-mono)" }}>LOADING...</span>
+              <span style={{ marginLeft: "var(--space-3)" }}>Loading…</span>
             </div>
           ) : items.length === 0 ? (
             <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No participation records found.
+              No participation records found.
             </div>
           ) : (
             <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
@@ -289,7 +292,9 @@ export default function EmployeeParticipationPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((p) => (
+                  {items.filter((p) =>
+                    matchesSearch(search, [p.id, p.user_name, p.user_email, p.activity_title, p.user_department_name, p.approval_status])
+                  ).map((p) => (
                     <tr key={p.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                       <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(p.id).padStart(3, "0")}</td>
                       <td style={{ padding: "10px var(--space-3)" }}>
@@ -332,7 +337,7 @@ export default function EmployeeParticipationPage() {
                               setCompletionDate(p.completion_date ? String(p.completion_date).slice(0, 10) : new Date().toISOString().slice(0, 10));
                             }}
                           >
-                            $ proof
+                            Proof
                           </button>
                         )}
                         {canApprove && p.approval_status === "pending" && (
@@ -369,7 +374,6 @@ export default function EmployeeParticipationPage() {
               <div className="form-group" style={{ maxWidth: "420px" }}>
                 <label className="form-label" htmlFor="rej">DEFAULT REJECTION REASON</label>
                 <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
                   <input id="rej" className="form-input" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="optional reason used on reject" />
                 </div>
               </div>
@@ -377,37 +381,36 @@ export default function EmployeeParticipationPage() {
           )}
         </div>
 
-        {submitId && (
-          <div className="card-elevated" style={{ height: "fit-content" }}>
-            <div className="card-header">SUBMIT PROOF #{submitId}</div>
+        <Modal
+          open={Boolean(submitId)}
+          title={`Submit proof · ${submitId ?? ""}`}
+          onClose={() => { if (!submitting) setSubmitId(null); }}
+          width={480}
+        >
             <form onSubmit={handleSubmitProof}>
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="cd">COMPLETION DATE</label>
-                  <input id="cd" type="date" className="form-input" value={completionDate} onChange={(e) => setCompletionDate(e.target.value)} disabled={submitting} style={{ paddingLeft: "12px" }} />
+                  <label className="form-label required" htmlFor="cd">Completion date</label>
+                  <input id="cd" type="date" className="form-input" value={completionDate} onChange={(e) => setCompletionDate(e.target.value)} disabled={submitting} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="pu">PROOF URL / LINK</label>
-                  <div className="input-wrapper">
-                    <span className="input-prompt">&gt;</span>
-                    <input id="pu" className="form-input" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} placeholder="https://..." disabled={submitting} />
-                  </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginTop: "4px" }}>
-                    // Stored as attachment record for approval audit
+                  <label className="form-label" htmlFor="pu">Proof URL / link</label>
+                  <input id="pu" className="form-input" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} placeholder="https://..." disabled={submitting} />
+                  <div style={{ fontSize: "12px", color: "var(--color-text-dim)", marginTop: "4px" }}>
+                    Paste a link to proof (stored as an attachment record for approval).
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-3)" }}>
-                  <button type="submit" className={`btn btn-primary btn-md btn-cli btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
-                    {submitting ? "SUBMITTING" : "SUBMIT"}
+                  <button type="submit" className={`btn btn-primary btn-md btn-full${submitting ? " btn-loading" : ""}`} disabled={submitting}>
+                    {submitting ? "Submitting…" : "Submit proof"}
                   </button>
                   <button type="button" className="btn btn-ghost btn-md btn-full" onClick={() => setSubmitId(null)} disabled={submitting}>
-                    CANCEL
+                    Cancel
                   </button>
                 </div>
               </div>
             </form>
-          </div>
-        )}
+        </Modal>
       </div>
     </div>
   );

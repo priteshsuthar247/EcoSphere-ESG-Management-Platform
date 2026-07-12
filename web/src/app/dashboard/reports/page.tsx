@@ -55,9 +55,6 @@ export default function ESGSummaryPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / REPORTS / ESG-SUMMARY
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           ESG OVERALL SUMMARY
         </h1>
@@ -72,7 +69,6 @@ export default function ESGSummaryPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
           <span>{error}</span>
         </div>
       )}

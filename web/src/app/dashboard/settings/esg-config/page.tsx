@@ -14,6 +14,10 @@ export default function ESGConfigurationPage() {
   const [enableEmissionCalculation, setEnableEmissionCalculation] = useState(true);
   const [requireCsrEvidence, setRequireCsrEvidence] = useState(true);
   const [autoAwardBadges, setAutoAwardBadges] = useState(true);
+  const [weightEnvironmental, setWeightEnvironmental] = useState(40);
+  const [weightSocial, setWeightSocial] = useState(30);
+  const [weightGovernance, setWeightGovernance] = useState(30);
+  const [recalculating, setRecalculating] = useState(false);
 
   useEffect(() => {
     fetchConfig();
@@ -35,6 +39,9 @@ export default function ESGConfigurationPage() {
         setEnableEmissionCalculation(config.enableEmissionCalculation ?? true);
         setRequireCsrEvidence(config.requireCsrEvidence ?? true);
         setAutoAwardBadges(config.autoAwardBadges ?? true);
+        setWeightEnvironmental(Math.round((config.weightEnvironmental ?? 0.4) * 100));
+        setWeightSocial(Math.round((config.weightSocial ?? 0.3) * 100));
+        setWeightGovernance(Math.round((config.weightGovernance ?? 0.3) * 100));
       }
     } catch (err) {
       setError((err as Error).message);
@@ -45,6 +52,11 @@ export default function ESGConfigurationPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    const sum = weightEnvironmental + weightSocial + weightGovernance;
+    if (sum !== 100) {
+      setError(`Pillar weights must sum to 100% (currently ${sum}%).`);
+      return;
+    }
     setSaving(true);
     setError("");
     setSuccess("");
@@ -57,9 +69,12 @@ export default function ESGConfigurationPage() {
           esg_config: {
             enableEmissionCalculation,
             requireCsrEvidence,
-            autoAwardBadges
-          }
-        })
+            autoAwardBadges,
+            weightEnvironmental: weightEnvironmental / 100,
+            weightSocial: weightSocial / 100,
+            weightGovernance: weightGovernance / 100,
+          },
+        }),
       });
 
       const json = await res.json();
@@ -67,7 +82,7 @@ export default function ESGConfigurationPage() {
         throw new Error(json.error || "Failed to save configuration");
       }
 
-      setSuccess("ESG configuration variables successfully committed to database registry.");
+      setSuccess("ESG configuration saved.");
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -75,13 +90,28 @@ export default function ESGConfigurationPage() {
     }
   }
 
+  async function handleRecalculateScores() {
+    setRecalculating(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch("/api/reports/scores", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Recalculation failed");
+      setSuccess(
+        `Scores recalculated for ${json.data?.departments?.length ?? 0} departments. Overall ESG: ${json.data?.overall?.overall ?? "–"}`,
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-6)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "4px" }}>
-          # ADMIN / SETTINGS / ESG-CONFIGURATION
-        </div>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
           ESG CORE VARIABLES
         </h1>
@@ -96,13 +126,11 @@ export default function ESGConfigurationPage() {
 
       {error && (
         <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[ERR]</span>
           <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>[OK]</span>
           <span>{success}</span>
         </div>
       )}
@@ -146,7 +174,10 @@ export default function ESGConfigurationPage() {
                 }}
                 disabled={saving}
               >
-                {enableEmissionCalculation ? "[x] ENABLED" : "[ ] DISABLED"}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={enableEmissionCalculation} readOnly />
+                  {enableEmissionCalculation ? "On" : "Off"}
+                </span>
               </button>
             </div>
 
@@ -179,7 +210,10 @@ export default function ESGConfigurationPage() {
                 }}
                 disabled={saving}
               >
-                {requireCsrEvidence ? "[x] ENABLED" : "[ ] DISABLED"}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={requireCsrEvidence} readOnly />
+                  {requireCsrEvidence ? "On" : "Off"}
+                </span>
               </button>
             </div>
 
@@ -212,25 +246,90 @@ export default function ESGConfigurationPage() {
                 }}
                 disabled={saving}
               >
-                {autoAwardBadges ? "[x] ENABLED" : "[ ] DISABLED"}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <input type="checkbox" checked={autoAwardBadges} readOnly />
+                  {autoAwardBadges ? "On" : "Off"}
+                </span>
               </button>
             </div>
 
-            <div 
-              className="ascii-divider" 
+            <div style={{ borderBottom: "1px dashed var(--color-border-subtle)" }} />
+
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                Overall ESG pillar weights (must total 100%)
+              </div>
+              <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
+                Used when computing department Total Score and organization Overall ESG.
+              </p>
+              <div className="form-grid-2" style={{ maxWidth: 480 }}>
+                <div className="form-group">
+                  <label className="form-label">Environmental %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="form-input"
+                    value={weightEnvironmental}
+                    onChange={(e) => setWeightEnvironmental(Number(e.target.value))}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Social %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="form-input"
+                    value={weightSocial}
+                    onChange={(e) => setWeightSocial(Number(e.target.value))}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Governance %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="form-input"
+                    value={weightGovernance}
+                    onChange={(e) => setWeightGovernance(Number(e.target.value))}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Sum</label>
+                  <div style={{ fontSize: 18, fontWeight: 700, paddingTop: 8 }}>
+                    {weightEnvironmental + weightSocial + weightGovernance}%
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="ascii-divider"
               style={{ color: "var(--color-border-subtle)", margin: "var(--space-2) 0" }}
             >
               {"─".repeat(40)}
             </div>
 
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
+            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
               <button
                 type="submit"
                 disabled={saving}
-                className={`btn btn-primary btn-md btn-cli${saving ? " btn-loading" : ""}`}
-                style={{ width: "200px" }}
+                className={`btn btn-primary btn-md${saving ? " btn-loading" : ""}`}
               >
-                {saving ? "COMMITTING" : "COMMIT CHANGES"}
+                {saving ? "Saving…" : "Save configuration"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-md"
+                disabled={recalculating}
+                onClick={handleRecalculateScores}
+              >
+                {recalculating ? "Recalculating…" : "Recalculate department ESG scores"}
               </button>
             </div>
           </div>
