@@ -60,74 +60,65 @@ export default async function EmployeeDashboard() {
   ]);
 
   const statCards = [
-    { label: "ESG POINTS",         value: stats?.esg_points_balance ?? 0, color: "var(--color-primary)", suffix: "pts" },
-    { label: "TOTAL XP",           value: stats?.total_xp           ?? 0, color: "var(--color-secondary)", suffix: "xp" },
-    { label: "CSR ACTIVITIES",     value: stats?.csr_participated   ?? 0, color: "var(--color-tertiary)", suffix: "" },
-    { label: "CHALLENGES JOINED",  value: stats?.challenges_joined  ?? 0, color: "var(--color-primary)", suffix: "" },
-    { label: "BADGES EARNED",      value: stats?.badges_earned      ?? 0, color: "var(--color-secondary)", suffix: "" },
-    { label: "UNREAD ALERTS",      value: stats?.unread_notifications ?? 0, color: "var(--color-error)", suffix: "" },
+    { label: "ESG points", value: stats?.esg_points_balance ?? 0, color: "var(--color-primary)", suffix: "pts" },
+    { label: "Total XP", value: stats?.total_xp ?? 0, color: "var(--color-warning)", suffix: "xp" },
+    { label: "CSR activities", value: stats?.csr_participated ?? 0, color: "var(--color-accent-teal)", suffix: "" },
+    { label: "Challenges joined", value: stats?.challenges_joined ?? 0, color: "var(--color-primary)", suffix: "" },
+    { label: "Badges earned", value: stats?.badges_earned ?? 0, color: "var(--color-secondary)", suffix: "" },
+    { label: "Unread alerts", value: stats?.unread_notifications ?? 0, color: "var(--color-error)", suffix: "" },
   ];
 
   return (
     <div>
       <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.1em", marginBottom: "4px" }}>
-          # EMPLOYEE / DASHBOARD
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          SELF-SERVICE PORTAL
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>Employee</div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--color-text-primary)", marginBottom: 6 }}>
+          Your workspace
         </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Welcome back, <span style={{ color: "var(--color-secondary)" }}>{userName}</span>. Your ESG activity summary.
+        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
+          Welcome back, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>. Your ESG activity summary.
         </p>
       </div>
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>
-              {"// "}{s.label}
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
+              {s.label}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: s.color, lineHeight: 1.2 }}>
               {s.value}
-              {s.suffix && <span style={{ fontSize: "14px", color: "var(--color-text-dim)", marginLeft: "4px" }}>{s.suffix}</span>}
+              {s.suffix && <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4 }}>{s.suffix}</span>}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Recent notifications */}
       <div style={{ marginBottom: "var(--space-8)" }}>
-        <div className="card-header">RECENT NOTIFICATIONS</div>
+        <div className="card-header">Recent notifications</div>
         {notifications.length === 0 ? (
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-dim)", padding: "var(--space-4)", border: "1px solid var(--color-border-subtle)" }}>
-            {"// No notifications. All clear."}
+          <div className="card" style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
+            No notifications. You’re all caught up.
           </div>
         ) : (
-          <div>
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
             {notifications.map((n, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "10px var(--space-4)", borderBottom: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", fontSize: "13px", background: n.is_read ? "transparent" : "rgba(0,255,65,0.02)" }}>
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "12px 16px", borderBottom: "1px solid var(--color-hairline)", fontSize: 14, background: n.is_read ? "transparent" : "rgba(0,117,222,0.04)" }}>
                 <div>
-                  <div style={{ color: n.is_read ? "var(--color-text-muted)" : "var(--color-text-primary)", marginBottom: "2px" }}>
-                    {">"} {n.title}
+                  <div style={{ color: n.is_read ? "var(--color-text-muted)" : "var(--color-text-primary)", fontWeight: 600, marginBottom: 2 }}>
+                    {n.title}
                   </div>
-                  <div style={{ color: "var(--color-text-dim)", fontSize: "11px" }}>{n.message}</div>
+                  <div style={{ color: "var(--color-text-dim)", fontSize: 13 }}>{n.message}</div>
                 </div>
-                {!n.is_read && <span className="chip chip-green" style={{ flexShrink: 0, marginLeft: "var(--space-4)" }}>NEW</span>}
+                {!n.is_read && <span className="chip chip-cyan" style={{ flexShrink: 0, marginLeft: "var(--space-4)" }}>New</span>}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Quick actions */}
       <div>
-        <div className="card-header">QUICK ACTIONS</div>
+        <div className="card-header">Quick actions</div>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
             { label: "Browse CSR Activities",  href: "/dashboard/social/csr" },

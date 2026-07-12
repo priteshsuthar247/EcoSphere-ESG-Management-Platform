@@ -1,6 +1,5 @@
 "use client";
-// src/app/forgot-password/page.tsx
-// Forgot Password UI page - TerminalUI design system
+// Forgot password — Notion-inspired design system
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -10,7 +9,6 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const emailRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -25,46 +23,22 @@ export default function ForgotPasswordPage() {
     setSuccess("");
     setLoading(true);
 
-    // Initial console output
-    setConsoleLogs([
-      `[${new Date().toLocaleTimeString()}] $ initiate --reset-request --user=${email}`,
-      `[${new Date().toLocaleTimeString()}] > Verifying database records for email...`
-    ]);
-
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() })
+        body: JSON.stringify({ email: email.trim() }),
       });
 
       const json = await res.json();
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
       if (!res.ok || !json.success) {
-        throw new Error(json.error || "Reset dispatch failed.");
+        throw new Error(json.error || "Reset request failed.");
       }
 
-      setConsoleLogs((prev) => [
-        ...prev,
-        `[${new Date().toLocaleTimeString()}] > Record located. Constructing security signature...`,
-        `[${new Date().toLocaleTimeString()}] > Verification token initialized.`,
-        `[${new Date().toLocaleTimeString()}] > Outbound transmission accepted by mail server.`,
-        `[${new Date().toLocaleTimeString()}] > STATUS: DISPATCHED SUCCESSFULLY.`
-      ]);
-
-      setSuccess(json.message || "A verification link has been dispatched to your email.");
+      setSuccess(json.message || "If that email exists, a reset link has been sent.");
     } catch (err) {
-      const msg = (err as Error).message;
-      setConsoleLogs((prev) => [
-        ...prev,
-        `[${new Date().toLocaleTimeString()}] > ERROR: ${msg}`,
-        `[${new Date().toLocaleTimeString()}] > Request aborted.`
-      ]);
-      setError(msg);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -72,135 +46,107 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="auth-page">
-      {/* ── LEFT PANEL ── */}
       <div className="auth-left">
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.12em", marginBottom: "var(--space-4)" }}>
-            $ ecosphere --recovery
+        <div style={{ maxWidth: 440 }}>
+          <div
+            style={{
+              display: "inline-flex",
+              padding: "4px 10px",
+              borderRadius: "var(--radius-full)",
+              background: "rgba(255,255,255,0.12)",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: "var(--space-6)",
+            }}
+          >
+            Account recovery
           </div>
-
-          <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: "var(--color-primary)", lineHeight: 1.2, marginBottom: "var(--space-6)" }}>
-            CREDENTIALS
-            <br />
-            RECOVERY
+          <h1
+            style={{
+              fontSize: 40,
+              fontWeight: 700,
+              lineHeight: 1.1,
+              letterSpacing: "-1px",
+              color: "#fff",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            Reset your password securely.
           </h1>
-
-          <div style={{ borderLeft: "2px solid var(--color-primary)", paddingLeft: "var(--space-4)", marginBottom: "var(--space-8)" }}>
-            <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)", lineHeight: "20px" }}>
-              Enter your registered email address.
-              <br />
-              A cryptographic token link
-              <br />
-              will be dispatched to reset
-              <br />
-              your access parameters.
-            </p>
-          </div>
+          <p style={{ fontSize: 16, lineHeight: 1.5, color: "rgba(255,255,255,0.78)" }}>
+            We’ll email you a one-time link if the address is registered.
+          </p>
         </div>
       </div>
 
-      {/* ── RIGHT PANEL: Form ── */}
       <div className="auth-right">
         <div className="auth-form-container">
-          
-          {/* Header */}
           <div style={{ marginBottom: "var(--space-6)" }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.10em", marginBottom: "var(--space-2)" }}>
-              # CREDENTIAL RECOVERY SYSTEM
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>
+              Forgot password
             </div>
-            <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "var(--space-1)" }}>
-              FORGOT PASSWORD
+            <h1
+              style={{
+                fontSize: 26,
+                fontWeight: 700,
+                letterSpacing: "-0.4px",
+                color: "var(--color-text-primary)",
+                marginBottom: 6,
+              }}
+            >
+              Recover access
             </h1>
-            <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-              Request a security verification link.
+            <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
+              Enter the email associated with your account.
             </p>
-          </div>
-
-          <div className="ascii-divider" style={{ color: "var(--color-border-medium)", fontSize: "12px" }}>
-            {"─".repeat(48)}
           </div>
 
           {error && (
             <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-              <span>[ERR]</span>
               <span>{error}</span>
             </div>
           )}
-
           {success && (
             <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-              <span>[OK]</span>
               <span>{success}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} noValidate>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-              
-              {/* Email Input */}
               <div className="form-group">
-                <label className="form-label" htmlFor="forgot-email">EMAIL ADDRESS</label>
-                <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
-                  <input
-                    ref={emailRef}
-                    id="forgot-email"
-                    className="form-input"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="user@ecosphere.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                <label className="form-label" htmlFor="forgot-email">
+                  Email
+                </label>
+                <input
+                  ref={emailRef}
+                  id="forgot-email"
+                  className="form-input"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                />
               </div>
-
               <button
-                id="forgot-submit"
                 type="submit"
-                className={`btn btn-primary btn-lg btn-full btn-cli${loading ? " btn-loading" : ""}`}
+                className={`btn btn-primary btn-lg btn-full${loading ? " btn-loading" : ""}`}
                 disabled={loading || !email}
-                style={{ marginTop: "var(--space-2)" }}
               >
-                {loading ? "DISPATCHING Link" : "SEND RECOVERY LINK"}
+                {loading ? "Sending…" : "Send reset link"}
               </button>
             </div>
           </form>
 
-          <div className="ascii-divider" style={{ color: "var(--color-border-medium)", fontSize: "12px" }}>
-            {"─".repeat(48)}
-          </div>
-
-          {/* Console logger output */}
-          {consoleLogs.length > 0 && (
-            <div style={{ marginBottom: "var(--space-6)" }}>
-              <div className="terminal-block" style={{ fontSize: "12px", maxHeight: "160px", overflowY: "auto" }}>
-                {consoleLogs.map((log, index) => {
-                  const isErr = log.includes("ERROR");
-                  const isOk = log.includes("STATUS: DISPATCHED");
-                  let cls = "t-dim";
-                  if (isErr) cls = "t-error";
-                  else if (isOk) cls = "t-green";
-
-                  return (
-                    <div key={index} className={cls}>
-                      {log}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)", textAlign: "center" }}>
-            Return to authentication?{" "}
-            <Link href="/login" style={{ color: "var(--color-tertiary)", fontWeight: 500 }}>
-              $ login
+          <div style={{ marginTop: "var(--space-6)", textAlign: "center", fontSize: 14, color: "var(--color-text-muted)" }}>
+            <Link href="/login" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+              Back to sign in
             </Link>
           </div>
-
         </div>
       </div>
     </div>

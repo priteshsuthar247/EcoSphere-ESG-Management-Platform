@@ -1,6 +1,5 @@
 "use client";
-// src/components/LogoutButton.tsx
-// Logout button that calls POST /api/auth/logout and redirects to /login
+// Logout button — Notion-inspired utility style
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,10 +22,9 @@ export default function LogoutButton() {
       id="logout-btn"
       onClick={handleLogout}
       disabled={loading}
-      className="btn btn-danger btn-sm btn-full"
-      style={{ letterSpacing: "0.04em" }}
+      className="btn btn-ghost btn-sm btn-full"
     >
-      {loading ? "LOGGING OUT..." : "$ logout"}
+      {loading ? "Signing out…" : "Sign out"}
     </button>
   );
 }

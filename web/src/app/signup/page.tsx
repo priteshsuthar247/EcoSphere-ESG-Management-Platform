@@ -1,6 +1,5 @@
 "use client";
-// src/app/signup/page.tsx
-// Sign-up page — TerminalUI design system
+// Sign-up page — Notion-inspired design system (DESIGN.md)
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -8,10 +7,10 @@ import Link from "next/link";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "min 8 chars", pass: password.length >= 8 },
-    { label: "uppercase", pass: /[A-Z]/.test(password) },
-    { label: "lowercase", pass: /[a-z]/.test(password) },
-    { label: "number", pass: /\d/.test(password) },
+    { label: "8+ characters", pass: password.length >= 8 },
+    { label: "Uppercase", pass: /[A-Z]/.test(password) },
+    { label: "Lowercase", pass: /[a-z]/.test(password) },
+    { label: "Number", pass: /\d/.test(password) },
   ];
 
   if (!password) return null;
@@ -19,22 +18,21 @@ function PasswordStrength({ password }: { password: string }) {
   return (
     <div
       style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: "11px",
+        fontSize: 12,
         color: "var(--color-text-dim)",
-        lineHeight: "20px",
-        marginTop: "4px",
+        lineHeight: 1.6,
+        marginTop: 6,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "8px 12px",
       }}
     >
       {checks.map((c) => (
         <span
           key={c.label}
-          style={{
-            marginRight: "12px",
-            color: c.pass ? "var(--color-primary)" : "var(--color-text-dim)",
-          }}
+          style={{ color: c.pass ? "var(--color-success)" : "var(--color-text-dim)" }}
         >
-          {c.pass ? "[x]" : "[ ]"} {c.label}
+          {c.pass ? "✓" : "○"} {c.label}
         </span>
       ))}
     </div>
@@ -95,7 +93,7 @@ export default function SignupPage() {
         return;
       }
 
-      setSuccess("Account created. Redirecting...");
+      setSuccess("Account created. Redirecting…");
       setTimeout(() => router.push(json.data.redirectTo), 1000);
     } catch {
       setError("Network error. Check your connection.");
@@ -105,300 +103,185 @@ export default function SignupPage() {
 
   return (
     <div className="auth-page">
-      {/* ── LEFT PANEL ── */}
       <div className="auth-left">
-        <div style={{ position: "relative", zIndex: 1 }}>
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 440 }}>
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              color: "var(--color-text-dim)",
-              letterSpacing: "0.12em",
-              marginBottom: "var(--space-4)",
-            }}
-          >
-            $ ecosphere --register
-          </div>
-
-          <h1
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "32px",
-              fontWeight: 700,
-              color: "var(--color-primary)",
-              lineHeight: 1.2,
+              display: "inline-flex",
+              padding: "4px 10px",
+              borderRadius: "var(--radius-full)",
+              background: "rgba(255,255,255,0.12)",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
               marginBottom: "var(--space-6)",
             }}
           >
-            NEW USER
-            <br />
-            REGISTRATION
+            Create account
+          </div>
+          <h1
+            style={{
+              fontSize: 40,
+              fontWeight: 700,
+              lineHeight: 1.1,
+              letterSpacing: "-1px",
+              color: "#ffffff",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            Join your organisation’s ESG workspace.
           </h1>
-
-          <div
-            style={{
-              borderLeft: "2px solid var(--color-primary)",
-              paddingLeft: "var(--space-4)",
-              marginBottom: "var(--space-8)",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "13px",
-                color: "var(--color-text-muted)",
-                lineHeight: "20px",
-              }}
-            >
-              All new accounts are assigned
-              <br />
-              the{" "}
-              <span style={{ color: "var(--color-secondary)" }}>EMPLOYEE</span> role
-              <br />
-              by default. Role elevation
-              <br />
-              requires admin approval.
-            </p>
-          </div>
-
-          {/* Role table */}
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "12px",
-              lineHeight: "20px",
-            }}
-          >
-            <div style={{ color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
-              {"// AVAILABLE ROLES"}
-            </div>
-            {[
-              { role: "ADMIN", access: "Full system access", color: "var(--color-error)" },
-              { role: "CEO", access: "Executive overview", color: "var(--color-secondary)" },
-              { role: "DEPT HEAD", access: "Department control", color: "var(--color-tertiary)" },
-              { role: "EMPLOYEE", access: "Self-service portal", color: "var(--color-primary)" },
-            ].map((r) => (
-              <div
-                key={r.role}
-                style={{ display: "flex", gap: "var(--space-3)", alignItems: "center" }}
-              >
-                <span style={{ color: "var(--color-text-dim)" }}>
-                  {r.role === "EMPLOYEE" ? "(*)" : "( )"}
-                </span>
-                <span style={{ color: r.color, minWidth: "90px" }}>{r.role}</span>
-                <span style={{ color: "var(--color-text-dim)" }}>{r.access}</span>
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: 16, lineHeight: 1.5, color: "rgba(255,255,255,0.78)" }}>
+            New accounts start as Employee. An admin can elevate roles after
+            registration.
+          </p>
         </div>
       </div>
 
-      {/* ── RIGHT PANEL: Sign-up form ── */}
       <div className="auth-right">
         <div className="auth-form-container">
-          {/* Header */}
           <div style={{ marginBottom: "var(--space-6)" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "11px",
-                color: "var(--color-text-dim)",
-                letterSpacing: "0.1em",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              # NEW USER REGISTRATION
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>
+              Register
             </div>
             <h1
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "24px",
+                fontSize: 26,
                 fontWeight: 700,
+                letterSpacing: "-0.4px",
                 color: "var(--color-text-primary)",
-                marginBottom: "var(--space-1)",
+                marginBottom: 6,
               }}
             >
-              CREATE ACCOUNT
+              Create your account
             </h1>
-            <p
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "13px",
-                color: "var(--color-text-muted)",
-              }}
-            >
-              Register a new employee account.
+            <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
+              Register as an employee to get started.
             </p>
           </div>
 
-          <div
-            className="ascii-divider"
-            style={{ color: "var(--color-border-medium)", fontSize: "12px" }}
-          >
-            {"─".repeat(48)}
-          </div>
-
-          {/* Error / Success */}
           {error && (
             <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-              <span>[ERR]</span>
               <span>{error}</span>
             </div>
           )}
           {success && (
             <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-              <span>[OK]</span>
               <span>{success}</span>
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} noValidate>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-              {/* Name */}
               <div className="form-group">
                 <label className="form-label" htmlFor="signup-name">
-                  FULL NAME
+                  Full name
                 </label>
-                <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
-                  <input
-                    ref={nameRef}
-                    id="signup-name"
-                    className="form-input"
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Jane Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                <input
+                  ref={nameRef}
+                  id="signup-name"
+                  className="form-input"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Jane Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  disabled={loading}
+                />
               </div>
 
-              {/* Email */}
               <div className="form-group">
                 <label className="form-label" htmlFor="signup-email">
-                  EMAIL ADDRESS
+                  Email
                 </label>
-                <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
-                  <input
-                    id="signup-email"
-                    className="form-input"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="jane@ecosphere.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                <input
+                  id="signup-email"
+                  className="form-input"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="jane@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                />
               </div>
 
-              {/* Password */}
               <div className="form-group">
                 <label className="form-label" htmlFor="signup-password">
-                  PASSWORD
+                  Password
                 </label>
-                <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
-                  <input
-                    id="signup-password"
-                    className="form-input"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Min 8 chars, A-Z, a-z, 0-9"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                <input
+                  id="signup-password"
+                  className="form-input"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Min 8 chars, A–Z, a–z, 0–9"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                />
                 <PasswordStrength password={password} />
               </div>
 
-              {/* Confirm Password */}
               <div className="form-group">
                 <label className="form-label" htmlFor="signup-confirm">
-                  CONFIRM PASSWORD
+                  Confirm password
                 </label>
-                <div className="input-wrapper">
-                  <span className="input-prompt">&gt;</span>
-                  <input
-                    id="signup-confirm"
-                    className={`form-input${confirm && confirm !== password ? " error" : ""}`}
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Re-enter password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                </div>
+                <input
+                  id="signup-confirm"
+                  className={`form-input${confirm && confirm !== password ? " error" : ""}`}
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Re-enter password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  disabled={loading}
+                />
                 {confirm && confirm !== password && (
-                  <div className="helper-text error">[x] Passwords do not match</div>
+                  <div className="helper-text error">Passwords do not match</div>
                 )}
               </div>
 
-              {/* Role display (read-only) */}
-              <div className="form-group">
-                <label className="form-label">ASSIGNED ROLE</label>
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid var(--color-border-subtle)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "14px",
-                    color: "var(--color-primary)",
-                    background: "var(--color-surface)",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  (*) EMPLOYEE
-                </div>
-                <div className="helper-text">
-                  {"// All registrations default to employee role"}
-                </div>
+              <div
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--color-hairline)",
+                  background: "var(--color-bg)",
+                  fontSize: 13,
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                Role: <strong style={{ color: "var(--color-text-primary)" }}>Employee</strong>
+                <span style={{ color: "var(--color-text-dim)" }}> (default for new accounts)</span>
               </div>
 
-              {/* Submit */}
               <button
                 id="signup-submit"
                 type="submit"
-                className={`btn btn-primary btn-lg btn-full btn-cli${loading ? " btn-loading" : ""}`}
+                className={`btn btn-primary btn-lg btn-full${loading ? " btn-loading" : ""}`}
                 disabled={loading || !name || !email || !password || !confirm}
-                style={{ marginTop: "var(--space-2)" }}
               >
-                {loading ? "REGISTERING" : "REGISTER"}
+                {loading ? "Creating account…" : "Create account"}
               </button>
             </div>
           </form>
 
           <div
-            className="ascii-divider"
-            style={{ color: "var(--color-border-medium)", fontSize: "12px" }}
-          >
-            {"─".repeat(48)}
-          </div>
-
-          <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "13px",
+              marginTop: "var(--space-6)",
+              fontSize: 14,
               color: "var(--color-text-muted)",
               textAlign: "center",
             }}
           >
             Already have an account?{" "}
-            <Link
-              href="/login"
-              style={{ color: "var(--color-tertiary)", fontWeight: 500 }}
-            >
-              $ login
+            <Link href="/login" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+              Sign in
             </Link>
           </div>
         </div>

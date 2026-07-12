@@ -42,49 +42,42 @@ export default async function DeptHeadDashboard() {
   const stats = await getDeptHeadStats(userId);
 
   const statCards = [
-    { label: "EMPLOYEES",        value: stats?.employee_count  ?? "–", color: "var(--color-primary)" },
-    { label: "ACTIVE GOALS",     value: stats?.open_goals      ?? "–", color: "var(--color-tertiary)" },
-    { label: "PENDING CSR",      value: stats?.pending_csr     ?? "–", color: "var(--color-secondary)" },
-    { label: "OPEN COMPLIANCE",  value: stats?.open_compliance ?? "–", color: "var(--color-error)" },
+    { label: "Employees", value: stats?.employee_count ?? "–", color: "var(--color-primary)" },
+    { label: "Active goals", value: stats?.open_goals ?? "–", color: "var(--color-accent-teal)" },
+    { label: "Pending CSR", value: stats?.pending_csr ?? "–", color: "var(--color-warning)" },
+    { label: "Open compliance", value: stats?.open_compliance ?? "–", color: "var(--color-error)" },
   ];
 
   return (
     <div>
       <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.1em", marginBottom: "4px" }}>
-          # DEPARTMENTAL HEAD / DASHBOARD
-        </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          DEPARTMENT CONTROL
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>Department head</div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--color-text-primary)", marginBottom: 6 }}>
+          Department control
         </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Welcome, <span style={{ color: "var(--color-secondary)" }}>{userName}</span>.
+        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
+          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
           {stats?.dept_name && (
-            <> Department: <span style={{ color: "var(--color-tertiary)" }}>{stats.dept_name}</span></>
+            <> Department: <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{stats.dept_name}</span></>
           )}
         </p>
       </div>
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>
-              {"// "}{s.label}
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
+              {s.label}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
+            <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.5px", color: s.color, lineHeight: 1.2 }}>
               {s.value}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Quick actions */}
       <div>
-        <div className="card-header">QUICK ACTIONS</div>
+        <div className="card-header">Quick actions</div>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
             { label: "Review CSR Participations", href: "/dashboard/social/participation" },

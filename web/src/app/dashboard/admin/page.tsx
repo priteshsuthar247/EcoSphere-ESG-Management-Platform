@@ -1,9 +1,9 @@
-// src/app/dashboard/admin/page.tsx
-// Admin Dashboard — full system access
+// Admin Dashboard — Notion-inspired daylight UI
 
 import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
+import Link from "next/link";
 
 interface Stats extends RowDataPacket {
   total_users: number;
@@ -18,7 +18,7 @@ async function getAdminStats(): Promise<Stats | null> {
       SELECT
         (SELECT COUNT(*) FROM users WHERE status = 'active') AS total_users,
         (SELECT COUNT(*) FROM departments WHERE status = 'active') AS total_departments,
-        (SELECT COUNT(*) FROM compliance_issues WHERE status IN ('open','in_progress')) AS open_compliance,
+        (SELECT COUNT(*) FROM compliance_issues WHERE status IN ('open','in_progress','overdue')) AS open_compliance,
         (SELECT COUNT(*) FROM challenges WHERE status = 'active') AS active_challenges
     `);
     return rows[0] ?? null;
@@ -33,79 +33,129 @@ export default async function AdminDashboard() {
   const stats = await getAdminStats();
 
   const statCards = [
-    { label: "ACTIVE USERS",       value: stats?.total_users       ?? "–", color: "var(--color-primary)" },
-    { label: "DEPARTMENTS",         value: stats?.total_departments ?? "–", color: "var(--color-tertiary)" },
-    { label: "OPEN COMPLIANCE",     value: stats?.open_compliance   ?? "–", color: "var(--color-error)" },
-    { label: "ACTIVE CHALLENGES",   value: stats?.active_challenges ?? "–", color: "var(--color-secondary)" },
+    { label: "Active users", value: stats?.total_users ?? "–", color: "var(--color-primary)" },
+    { label: "Departments", value: stats?.total_departments ?? "–", color: "var(--color-accent-teal)" },
+    { label: "Open compliance", value: stats?.open_compliance ?? "–", color: "var(--color-error)" },
+    { label: "Active challenges", value: stats?.active_challenges ?? "–", color: "var(--color-warning)" },
+  ];
+
+  const actions = [
+    { label: "Log carbon data", href: "/dashboard/environmental/carbon" },
+    { label: "Start challenge", href: "/dashboard/gamification/challenges" },
+    { label: "View reports", href: "/dashboard/reports" },
+    { label: "Manage departments", href: "/dashboard/settings/departments" },
+  ];
+
+  const modules = [
+    "Environmental",
+    "Social / CSR",
+    "Governance",
+    "Gamification",
+    "Reports",
+    "Settings",
   ];
 
   return (
     <div>
-      {/* Page header */}
       <div style={{ marginBottom: "var(--space-8)" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.1em", marginBottom: "4px" }}>
-          # ADMIN / DASHBOARD
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "var(--color-primary)",
+            marginBottom: 6,
+          }}
+        >
+          Admin
         </div>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          EXECUTIVE OVERVIEW
+        <h1
+          style={{
+            fontSize: 28,
+            fontWeight: 700,
+            letterSpacing: "-0.5px",
+            color: "var(--color-text-primary)",
+            marginBottom: 6,
+          }}
+        >
+          Executive overview
         </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Welcome, <span style={{ color: "var(--color-secondary)" }}>{userName}</span>. Full system access granted.
+        <p style={{ fontSize: 15, color: "var(--color-text-muted)" }}>
+          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
+          Full system access.
         </p>
       </div>
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-8)" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "var(--space-4)",
+          marginBottom: "var(--space-8)",
+        }}
+      >
         {statCards.map((s) => (
           <div key={s.label} className="stat-card">
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>
-              {"// "}{s.label}
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--color-text-dim)",
+                marginBottom: "var(--space-2)",
+              }}
+            >
+              {s.label}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "32px", fontWeight: 700, color: s.color, lineHeight: 1.2 }}>
+            <div
+              style={{
+                fontSize: 32,
+                fontWeight: 700,
+                letterSpacing: "-0.5px",
+                color: s.color,
+                lineHeight: 1.2,
+              }}
+            >
               {s.value}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Quick actions */}
       <div style={{ marginBottom: "var(--space-8)" }}>
-        <div className="card-header">QUICK ACTIONS</div>
+        <div className="card-header">Quick actions</div>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-          {[
-            { label: "Manage Users",       href: "/dashboard/settings/users" },
-            { label: "Log Carbon Data",    href: "/dashboard/environmental/carbon" },
-            { label: "Start Challenge",    href: "/dashboard/gamification/challenges" },
-            { label: "View Reports",       href: "/dashboard/reports" },
-            { label: "Manage Departments", href: "/dashboard/settings/departments" },
-          ].map((a) => (
-            <a key={a.label} href={a.href} className="btn btn-secondary btn-md btn-cli">
+          {actions.map((a) => (
+            <Link key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
-            </a>
+            </Link>
           ))}
         </div>
       </div>
 
-      {/* Module status */}
       <div>
-        <div className="card-header">MODULE STATUS</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--space-3)" }}>
-          {[
-            { module: "ENVIRONMENTAL",  status: "ONLINE", color: "var(--color-primary)" },
-            { module: "SOCIAL / CSR",   status: "ONLINE", color: "var(--color-primary)" },
-            { module: "GOVERNANCE",     status: "ONLINE", color: "var(--color-primary)" },
-            { module: "GAMIFICATION",   status: "ONLINE", color: "var(--color-primary)" },
-            { module: "REPORTS",        status: "ONLINE", color: "var(--color-primary)" },
-            { module: "NOTIFICATIONS",  status: "ONLINE", color: "var(--color-primary)" },
-            { module: "SETTINGS",       status: "ONLINE", color: "var(--color-primary)" },
-          ].map((m) => (
-            <div key={m.module} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px var(--space-4)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
-              <span style={{ color: "var(--color-text-muted)" }}>{">"} {m.module}</span>
-              <span style={{ color: m.color }}>[{m.status}]</span>
+        <div className="card-header">Module status</div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "var(--space-3)",
+          }}
+        >
+          {modules.map((m) => (
+            <div
+              key={m}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 16px",
+                border: "1px solid var(--color-hairline)",
+                borderRadius: "var(--radius-md)",
+                background: "var(--color-surface)",
+                fontSize: 14,
+              }}
+            >
+              <span style={{ color: "var(--color-ink-secondary)", fontWeight: 500 }}>{m}</span>
+              <span className="chip chip-green">Online</span>
             </div>
           ))}
         </div>

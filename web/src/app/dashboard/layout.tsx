@@ -37,31 +37,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="dashboard-layout">
-      {/* ── SIDEBAR ── */}
       <aside className="sidebar" role="navigation" aria-label="Main navigation">
-        {/* Logo */}
         <div className="sidebar-logo">
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '14px',
+              fontFamily: "var(--font-sans)",
+              fontSize: "16px",
               fontWeight: 700,
-              color: 'var(--color-primary)',
-              letterSpacing: '0.04em',
+              color: "var(--color-text-primary)",
+              letterSpacing: "-0.02em",
             }}
           >
-            [ECOSPHERE]
+            EcoSphere
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
-              color: 'var(--color-text-dim)',
-              letterSpacing: '0.08em',
-              marginTop: '2px',
+              fontFamily: "var(--font-sans)",
+              fontSize: "12px",
+              color: "var(--color-text-dim)",
+              marginTop: "2px",
             }}
           >
-            ESG MANAGEMENT PLATFORM
+            ESG Management
           </div>
         </div>
 
@@ -83,66 +80,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        {/* Sidebar footer: user info + logout */}
         <div className="sidebar-footer">
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
-              color: 'var(--color-text-dim)',
-              lineHeight: '20px',
-              marginBottom: 'var(--space-3)',
+              fontFamily: "var(--font-sans)",
+              fontSize: "13px",
+              color: "var(--color-text-muted)",
+              lineHeight: "1.5",
+              marginBottom: "var(--space-3)",
             }}
           >
-            <div style={{ color: 'var(--color-primary)' }}>{userName}</div>
+            <div style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{userName}</div>
             <div>
-              role:{' '}
-              <span style={{ color: 'var(--color-secondary)' }}>
-                {ROLE_LABELS[role] ?? role}
-              </span>
+              {ROLE_LABELS[role] ?? role}
             </div>
           </div>
           <LogoutButton />
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
       <div className="dashboard-main">
-        {/* Topbar */}
         <header className="topbar">
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
-              color: 'var(--color-text-dim)',
+              fontFamily: "var(--font-sans)",
+              fontSize: "14px",
+              color: "var(--color-text-muted)",
+              fontWeight: 500,
             }}
           >
-            <span style={{ color: 'var(--color-primary)' }}>ecosphere</span>
-            <span style={{ color: 'var(--color-text-dim)' }}>@platform</span>
-            <span style={{ color: 'var(--color-secondary)' }}>:~$</span>
+            Workspace
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
-              color: 'var(--color-text-dim)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-4)',
+              fontFamily: "var(--font-sans)",
+              fontSize: "13px",
+              color: "var(--color-text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--space-3)",
             }}
           >
-            <span>
-              role:{' '}
-              <span style={{ color: 'var(--color-secondary)' }}>
-                {ROLE_LABELS[role] ?? role}
-              </span>
-            </span>
-            <span style={{ color: 'var(--color-border-medium)' }}>|</span>
-            <span style={{ color: 'var(--color-primary)' }}>{userName}</span>
+            <span className="chip chip-cyan">{ROLE_LABELS[role] ?? role}</span>
+            <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{userName}</span>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="dashboard-content">{children}</main>
       </div>
     </div>
