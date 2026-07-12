@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server';
 import pool from '@/config/db';
 import { successResponse, errorResponse } from '@/utils/apiResponse';
 import { verifyToken } from '@/lib/auth';
-import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import type { RowDataPacket } from 'mysql2';
 import logger from '@/lib/logger';
 
 interface BadgeEntry extends RowDataPacket {
