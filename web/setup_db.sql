@@ -447,3 +447,18 @@ VALUES (
     'admin',
     'active'
 );
+
+-- Seed Gamification Badges
+INSERT IGNORE INTO badges (id, name, description, icon_url, unlock_rule, auto_award, status)
+VALUES 
+(1, 'Bronze Badge', 'Awarded to employees exceeding 1,000 points balance.', 'bronze.png', '{"points_required": 1000}', 1, 'active'),
+(2, 'Silver Badge', 'Awarded to employees exceeding 3,000 points balance.', 'silver.png', '{"points_required": 3000}', 1, 'active'),
+(3, 'Gold Badge', 'Awarded to employees exceeding 5,000 points balance.', 'gold.png', '{"points_required": 5000}', 1, 'active'),
+(4, 'Platinum Badge', 'Awarded to employees exceeding 8,000 points balance.', 'platinum.png', '{"points_required": 8000}', 1, 'active'),
+(5, 'Diamond Badge', 'Awarded to employees exceeding 12,000 points balance.', 'diamond.png', '{"points_required": 12000}', 1, 'active');
+
+-- Seed Gamification Rewards
+INSERT IGNORE INTO rewards (id, name, description, points_required, stock_quantity, category, status)
+VALUES 
+(1, '1 Share of Company Stock', 'Redeem 10,000 points to exchange for 1 physical share of company stock. Verification details will be sent via email.', 10000, 50, 'financial', 'active');
+
