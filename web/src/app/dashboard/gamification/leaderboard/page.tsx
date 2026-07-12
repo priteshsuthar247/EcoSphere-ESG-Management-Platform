@@ -129,7 +129,7 @@ export default function LeaderboardPage() {
                     {employees.length === 0 ? (
                       <tr>
                         <td colSpan={5} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                          // NO EMPLOYEE RECORDS COMMITTED IN SYSTEM DATABASE
+                          {"// NO EMPLOYEE RECORDS COMMITTED IN SYSTEM DATABASE"}
                         </td>
                       </tr>
                     ) : (
@@ -208,7 +208,7 @@ export default function LeaderboardPage() {
                     {departments.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                          // NO DEPARTMENTAL SCORES CALCULATED YET
+                          {"// NO DEPARTMENTAL SCORES CALCULATED YET"}
                         </td>
                       </tr>
                     ) : (

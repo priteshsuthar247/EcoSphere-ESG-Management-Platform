@@ -261,7 +261,7 @@ export default function RewardsManagementPage() {
                     {redemptions.length === 0 ? (
                       <tr>
                         <td colSpan={7} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                          // NO REDEMPTION REQUESTS IN QUEUE
+                          {"// NO REDEMPTION REQUESTS IN QUEUE"}
                         </td>
                       </tr>
                     ) : (
