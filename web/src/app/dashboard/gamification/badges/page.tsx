@@ -5,7 +5,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
-import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -39,17 +52,15 @@ export default function BadgesDashboardPage() {
   const [evaluating, setEvaluating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [awardSearch, setAwardSearch] = useState("");
+  const { draft, setSearch, apply, queryString } = useListQuery();
 
-  useEffect(() => {
-    fetchBadges();
-  }, []);
-
-  async function fetchBadges() {
+  const fetchBadges = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gamification/badges");
+      const res = await fetch(
+        `/api/gamification/badges${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -63,7 +74,11 @@ export default function BadgesDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchBadges();
+  }, [fetchBadges]);
 
   async function handleReevaluate() {
     setEvaluating(true);
@@ -133,11 +148,7 @@ export default function BadgesDashboardPage() {
     (a, b) => pointsRequired(a.unlock_rule) - pointsRequired(b.unlock_rule),
   );
 
-  const filteredAwards = awarded.filter((a) =>
-    matchesSearch(awardSearch, [a.user_name, a.user_email, a.badge_name, a.awarded_reason]),
-  );
-
-  const getAwardSort = useCallback((row: AwardedBadge, key: string): unknown => {
+    const getAwardSort = useCallback((row: AwardedBadge, key: string): unknown => {
     switch (key) {
       case "recipient": return row.user_name;
       case "badge": return row.badge_name;
@@ -152,7 +163,7 @@ export default function BadgesDashboardPage() {
     sortKey: awardSortKey,
     sortDir: awardSortDir,
     toggle: awardToggle,
-  } = useTableSort(filteredAwards, getAwardSort, "date", "desc");
+  } = useTableSort(awarded, getAwardSort, "date", "desc");
 
   return (
     <div>
@@ -173,16 +184,8 @@ export default function BadgesDashboardPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
@@ -266,9 +269,11 @@ export default function BadgesDashboardPage() {
           </div>
 
           <TableFilters
-            search={awardSearch}
-            onSearchChange={setAwardSearch}
+            search={draft.search}
+            onSearchChange={setSearch}
             searchPlaceholder="Search awards by recipient or badge…"
+            onApply={apply}
+            applying={loading}
           />
           <div className="card-header">Unlocked achievements ledger</div>
           

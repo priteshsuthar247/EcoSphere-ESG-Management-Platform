@@ -4,7 +4,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -68,8 +81,7 @@ export default function ProductEsgProfilesPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -83,7 +95,9 @@ export default function ProductEsgProfilesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/environmental/products?status=all");
+      const res = await fetch(
+        `/api/environmental/products${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load products");
       setItems(json.data.items);
@@ -93,7 +107,7 @@ export default function ProductEsgProfilesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -206,13 +220,7 @@ export default function ProductEsgProfilesPage() {
   const stageLabel = (v: string) =>
     LIFECYCLE_STAGES.find((s) => s.value === v)?.label ?? v;
 
-  const filtered = items.filter(
-    (item) =>
-      matchesStatus(statusFilter, item.status) &&
-      matchesSearch(search, [item.id, item.name, item.sku, item.category]),
-  );
-
-  const getSortValue = useCallback((row: Product, key: string): unknown => {
+    const getSortValue = useCallback((row: Product, key: string): unknown => {
     switch (key) {
       case "id": return row.id;
       case "name": return row.name;
@@ -225,7 +233,7 @@ export default function ProductEsgProfilesPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(items, getSortValue, "id");
 
   return (
     <div>
@@ -260,23 +268,15 @@ export default function ProductEsgProfilesPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search products, SKU, category…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "active", label: "Active" },
@@ -284,13 +284,17 @@ export default function ProductEsgProfilesPage() {
           { value: "draft", label: "Draft" },
           { value: "archived", label: "Archived" },
         ]}
-        extra={
-          <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+            
+      onApply={apply}
+
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
             New product
           </button>
-        }
-      />
-
+          </ToolbarActions>
       <div>
         <div className="card-header">Product catalogue</div>
         {loading ? (

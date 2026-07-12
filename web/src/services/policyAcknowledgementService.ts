@@ -37,6 +37,7 @@ export async function listAcknowledgements(options?: {
   departmentId?: number | null;
   policyId?: number;
   userId?: number;
+  search?: string;
 }): Promise<PolicyAcknowledgement[]> {
   try {
     const clauses: string[] = [];
@@ -53,6 +54,14 @@ export async function listAcknowledgements(options?: {
     if (options?.userId !== undefined) {
       clauses.push('pa.user_id = ?');
       params.push(options.userId);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(u.name LIKE ? OR u.email LIKE ? OR p.title LIKE ? OR d.name LIKE ?
+          OR CAST(pa.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

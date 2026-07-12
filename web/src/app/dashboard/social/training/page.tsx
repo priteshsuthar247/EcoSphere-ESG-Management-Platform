@@ -3,7 +3,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -25,7 +38,7 @@ export default function TrainingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -40,7 +53,7 @@ export default function TrainingPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/social/training");
+      const res = await fetch(`/api/social/training${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load training");
       setItems(json.data.items);
@@ -50,7 +63,7 @@ export default function TrainingPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -92,28 +105,20 @@ export default function TrainingPage() {
     }
   }
 
-  const filtered = useMemo(
-    () =>
-      items.filter((t) =>
-        matchesSearch(search, [t.id, t.user_name, t.training_name, t.category, t.department_name]),
-      ),
-    [items, search],
-  );
-
-  const getTrainSort = useCallback((t: Training, key: string) => {
+  const getTrainSort = useCallback((row: Training, key: string): unknown => {
     switch (key) {
-      case "id": return t.id;
-      case "employee": return t.user_name;
-      case "department": return t.department_name ?? "";
-      case "training": return t.training_name;
-      case "category": return t.category ?? "";
-      case "date": return t.completion_date;
-      case "hours": return t.hours ?? 0;
-      default: return "";
+      case "id": return row.id;
+      case "employee": return row.user_name;
+      case "dept": return row.department_name ?? "";
+      case "name": return row.training_name;
+      case "category": return row.category ?? "";
+      case "date": return row.completion_date ?? "";
+      case "hours": return row.hours ?? 0;
+      default: return null;
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getTrainSort, "date", "desc");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(items, getTrainSort, "date", "desc");
 
   return (
     <div>
@@ -143,34 +148,30 @@ export default function TrainingPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search training, employee…"
-        extra={
-          <button type="button" className="btn btn-primary btn-md" onClick={() => setShowForm(true)}>
+            
+      onApply={apply}
+
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={() => setShowForm(true)}>
             Log training
           </button>
-        }
-      />
-
+          </ToolbarActions>
       <div className="card-header">Training registry</div>
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
           <span className="spinner" /> Loading…
         </div>
-      ) : filtered.length === 0 ? (
+      ) : items.length === 0 ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center", color: "var(--color-text-muted)" }}>
           No training records yet.
         </div>

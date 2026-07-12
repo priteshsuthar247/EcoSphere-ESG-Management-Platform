@@ -4,7 +4,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -37,8 +50,7 @@ export default function DepartmentsManagementPage() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
   // Form Fields
   const [formName, setFormName] = useState("");
@@ -50,17 +62,14 @@ export default function DepartmentsManagementPage() {
   const [formStatus, setFormStatus] = useState("active");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      const qs = queryString ? `?${queryString}` : "";
       const [deptsRes, usersRes] = await Promise.all([
-        fetch("/api/admin/departments"),
-        fetch("/api/admin/users")
+        fetch(`/api/admin/departments${qs}`),
+        fetch("/api/admin/users"),
       ]);
 
       const deptsJson = await deptsRes.json();
@@ -80,7 +89,11 @@ export default function DepartmentsManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   function handleAddClick() {
     setIsAdding(true);
@@ -158,12 +171,6 @@ export default function DepartmentsManagementPage() {
     }
   }
 
-  const filtered = departments.filter(
-    (d) =>
-      matchesStatus(statusFilter, d.status) &&
-      matchesSearch(search, [d.id, d.name, d.code, d.head_user_name, d.parent_department_name, d.location]),
-  );
-
   const getSortValue = useCallback((row: Department, key: string): unknown => {
     switch (key) {
       case "code": return row.code;
@@ -177,48 +184,29 @@ export default function DepartmentsManagementPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "name");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(departments, getSortValue, "name");
   const formOpen = isAdding || editingDept !== null;
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          DEPARTMENT REGISTRY
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Configure organizational branches, designate operational heads, and set relative hierarchy.
-        </p>
-      </div>
+      <PageHeader
+        title="Department registry"
+        description="Configure organizational branches, designate operational heads, and set relative hierarchy."
+      />
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
-        <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-          <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)" }}>Loading departments…</span>
-        </div>
+        <LoadingState label="Loading departments…" />
       ) : (
         <>
           <TableFilters
-            search={search}
+            search={draft.search}
             onSearchChange={setSearch}
             searchPlaceholder="Search departments, code, head…"
-            status={statusFilter}
-            onStatusChange={setStatusFilter}
+            status={draft.status}
+            onStatusChange={setStatus}
             statusOptions={[
               { value: "all", label: "All statuses" },
               { value: "active", label: "Active" },
@@ -226,17 +214,19 @@ export default function DepartmentsManagementPage() {
               { value: "draft", label: "Draft" },
               { value: "archived", label: "Archived" },
             ]}
-            extra={
-              <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
-                New department
-              </button>
-            }
+            onApply={apply}
+            applying={loading}
           />
+          <ToolbarActions>
+            <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
+              New department
+            </button>
+          </ToolbarActions>
 
           <div>
-            <div className="card-header">Active directory</div>
-            <div className="data-table-wrap">
-              <table className="data-table">
+            <SectionTitle>Active directory</SectionTitle>
+            <DataTableWrap>
+              <DataTable>
                 <thead>
                   <tr>
                     <SortableTh label="Code" columnKey="code" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
@@ -246,41 +236,37 @@ export default function DepartmentsManagementPage() {
                     <SortableTh label="Location" columnKey="location" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
                     <SortableTh label="Employees" columnKey="employees" sortKey={sortKey} sortDir={sortDir} onSort={toggle} align="right" />
                     <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
-                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
+                    <ActionTh />
                   </tr>
                 </thead>
                 <tbody>
                   {sorted.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        No departments found.
-                      </td>
-                    </tr>
+                    <DataTableEmptyRow colSpan={8} message="No departments found." />
                   ) : (
                     sorted.map((d) => (
-                      <tr key={d.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-secondary)", fontWeight: 700 }}>{d.code}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)" }}>{d.name}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: d.head_user_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
+                      <tr key={d.id}>
+                        <td style={{ color: "var(--color-secondary)", fontWeight: 700 }}>{d.code}</td>
+                        <td style={{ color: "var(--color-text-primary)" }}>{d.name}</td>
+                        <td style={{ color: d.head_user_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
                           {d.head_user_name || "—"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: d.parent_department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
+                        <td style={{ color: d.parent_department_name ? "var(--color-text-primary)" : "var(--color-text-dim)" }}>
                           {d.parent_department_name || "—"}
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-muted)" }}>{d.location || "–"}</td>
-                        <td style={{ padding: "10px var(--space-3)", textAlign: "right", color: "var(--color-text-primary)" }}>{d.employee_count}</td>
-                        <td style={{ padding: "10px var(--space-3)" }}>
-                          <span className={`chip ${d.status === "active" ? "chip-green" : "chip-muted"}`}>{d.status}</span>
+                        <td style={{ color: "var(--color-text-muted)" }}>{d.location || "–"}</td>
+                        <td style={{ textAlign: "right", color: "var(--color-text-primary)" }}>{d.employee_count}</td>
+                        <td>
+                          <StatusChip status={d.status} />
                         </td>
-                        <td style={{ padding: "10px var(--space-3)", textAlign: "center" }}>
+                        <td style={{ textAlign: "center" }}>
                           <button type="button" onClick={() => handleEditClick(d)} className="btn btn-secondary btn-sm">Edit</button>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableWrap>
           </div>
 
           <Modal

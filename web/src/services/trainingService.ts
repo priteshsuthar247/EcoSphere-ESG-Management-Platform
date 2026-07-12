@@ -20,6 +20,7 @@ export interface TrainingRow extends RowDataPacket {
 export async function listTrainings(options?: {
   userId?: number;
   departmentId?: number | null;
+  search?: string;
 }): Promise<TrainingRow[]> {
   const clauses: string[] = [];
   const params: Array<string | number | null> = [];
@@ -30,6 +31,13 @@ export async function listTrainings(options?: {
   if (options?.departmentId != null) {
     clauses.push("u.department_id = ?");
     params.push(options.departmentId);
+  }
+  if (options?.search?.trim()) {
+    const q = `%${options.search.trim().replace(/[%_]/g, "\\$&")}%`;
+    clauses.push(
+      "(t.training_name LIKE ? OR t.category LIKE ? OR u.name LIKE ? OR d.name LIKE ? OR CAST(t.id AS CHAR) LIKE ?)",
+    );
+    params.push(q, q, q, q, q);
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const [rows] = await pool.execute<TrainingRow[]>(

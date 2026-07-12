@@ -3,7 +3,20 @@
 // Diversity Dashboard — TerminalUI (admin / ceo)
 
 import { useCallback, useEffect, useState } from "react";
-import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { ChartCard, SimpleDonutChart } from "@/components/StatCharts";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
@@ -45,13 +58,13 @@ export default function DiversityDashboardPage() {
   const [data, setData] = useState<DiversityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [matrixSearch, setMatrixSearch] = useState("");
+  const { draft, setSearch, apply, queryString } = useListQuery();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/social/diversity");
+      const res = await fetch(`/api/social/diversity${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load diversity metrics");
       setData(json.data);
@@ -60,7 +73,7 @@ export default function DiversityDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -68,9 +81,7 @@ export default function DiversityDashboardPage() {
 
   type MatrixRow = DiversityData["gender_by_department"][number];
 
-  const filteredMatrix = (data?.gender_by_department ?? []).filter((row) =>
-    matchesSearch(matrixSearch, [row.department_name, row.gender, row.count]),
-  );
+  const filteredMatrix = data?.gender_by_department ?? [];
 
   const getMatrixSort = useCallback((row: MatrixRow, key: string): unknown => {
     switch (key) {
@@ -93,11 +104,14 @@ export default function DiversityDashboardPage() {
     labelKey,
     valueKey = "count",
     percentKey = "percent",
+    compactLabels = false,
   }: {
     rows: Array<Record<string, string | number | null | undefined>>;
     labelKey: string;
     valueKey?: string;
     percentKey?: string;
+    /** Narrow label column (e.g. gender) so % sits close to the bar */
+    compactLabels?: boolean;
   }) {
     const max = Math.max(...rows.map((r) => Number(r[valueKey] ?? 0)), 1);
     return (
@@ -114,14 +128,50 @@ export default function DiversityDashboardPage() {
             const width = Math.max(4, Math.round((count / max) * 100));
             return (
               <div key={`${label}-${i}`}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                  <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
-                  <span style={{ color: "var(--color-primary)" }}>
-                    {count} <span style={{ color: "var(--color-text-dim)" }}>({percent}%)</span>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: compactLabels
+                      ? "minmax(64px, 100px) 1fr auto"
+                      : "minmax(80px, 140px) 1fr auto",
+                    gap: "var(--space-3)",
+                    alignItems: "center",
+                    fontSize: "12px",
+                    marginBottom: "4px",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "var(--color-text-muted)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={label}
+                  >
+                    {label}
                   </span>
-                </div>
-                <div style={{ height: "8px", border: "1px solid var(--color-border-medium)", background: "var(--color-bg)", borderRadius: 4 }}>
-                  <div style={{ height: "100%", width: `${width}%`, background: "var(--color-primary)", borderRadius: 4 }} />
+                  <div
+                    style={{
+                      height: 8,
+                      background: "var(--color-bg)",
+                      borderRadius: 999,
+                      overflow: "hidden",
+                      border: "1px solid var(--color-hairline)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${width}%`,
+                        background: "var(--color-primary)",
+                        borderRadius: 999,
+                      }}
+                    />
+                  </div>
+                  <span style={{ color: "var(--color-primary)", whiteSpace: "nowrap", fontWeight: 600 }}>
+                    {count} <span style={{ color: "var(--color-text-dim)", fontWeight: 500 }}>({percent}%)</span>
+                  </span>
                 </div>
               </div>
             );
@@ -146,11 +196,7 @@ export default function DiversityDashboardPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
@@ -190,7 +236,7 @@ export default function DiversityDashboardPage() {
             <div>
               <div className="card-header">By gender</div>
               <div className="card-elevated">
-                <BarList rows={data.by_gender} labelKey="gender" />
+                <BarList rows={data.by_gender} labelKey="gender" compactLabels />
               </div>
             </div>
             <div>
@@ -221,9 +267,11 @@ export default function DiversityDashboardPage() {
 
           <div>
             <TableFilters
-              search={matrixSearch}
-              onSearchChange={setMatrixSearch}
+              search={draft.search}
+              onSearchChange={setSearch}
               searchPlaceholder="Search department or gender…"
+              onApply={apply}
+              applying={loading}
             />
             <div className="card-header">Gender × department matrix</div>
             {sortedMatrix.length === 0 ? (

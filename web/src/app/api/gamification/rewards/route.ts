@@ -58,13 +58,65 @@ export async function GET(request: NextRequest) {
       return errorResponse('Access denied. Invalid token.', 401, 'UNAUTHORIZED');
     }
 
-    // 1. Fetch catalog rewards
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const status = (searchParams.get('status') || 'all').trim() || 'all';
+    const catalogStatus = (searchParams.get('catalog_status') || 'all').trim() || 'all';
+
+    // 1. Fetch catalog rewards (optional status + search)
+    const rewardClauses: string[] = [];
+    const rewardParams: Array<string | number> = [];
+    if (catalogStatus && catalogStatus !== 'all') {
+      rewardClauses.push('status = ?');
+      rewardParams.push(catalogStatus);
+    }
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      rewardClauses.push(
+        '(name LIKE ? OR description LIKE ? OR category LIKE ? OR CAST(id AS CHAR) LIKE ?)',
+      );
+      rewardParams.push(q, q, q, q);
+    }
+    const rewardWhere = rewardClauses.length ? `WHERE ${rewardClauses.join(' AND ')}` : '';
     const [rewards] = await pool.execute<RewardRow[]>(
-      'SELECT id, name, description, points_required, stock_quantity, category, status FROM rewards ORDER BY id ASC'
+      `SELECT id, name, description, points_required, stock_quantity, category, status
+       FROM rewards ${rewardWhere} ORDER BY id ASC`,
+      rewardParams,
     );
 
     // 2. Fetch redemption requests
-    let query = `
+    const clauses: string[] = [];
+    const values: (string | number | boolean | null)[] = [];
+
+    // Scope redemptions by role
+    if (payload.role === 'employee') {
+      clauses.push('rr.user_id = ?');
+      values.push(payload.id);
+    } else if (payload.role === 'departmental_head') {
+      if (payload.department_id == null) {
+        clauses.push('rr.user_id = ?');
+        values.push(payload.id);
+      } else {
+        clauses.push('u.department_id = ?');
+        values.push(payload.department_id);
+      }
+    }
+    // admin + ceo: all redemptions
+
+    if (status && status !== 'all') {
+      clauses.push('rr.status = ?');
+      values.push(status);
+    }
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(u.name LIKE ? OR u.email LIKE ? OR rw.name LIKE ? OR rr.notes LIKE ? OR CAST(rr.id AS CHAR) LIKE ?)',
+      );
+      values.push(q, q, q, q, q);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const query = `
       SELECT 
         rr.id, 
         rr.user_id, 
@@ -82,26 +134,9 @@ export async function GET(request: NextRequest) {
       FROM reward_redemptions rr
       JOIN users u ON u.id = rr.user_id
       JOIN rewards rw ON rw.id = rr.reward_id
+      ${where}
+      ORDER BY rr.id DESC
     `;
-
-    const values: (string | number | boolean | null)[] = [];
-
-    // Scope redemptions by role
-    if (payload.role === 'employee') {
-      query += ' WHERE rr.user_id = ?';
-      values.push(payload.id);
-    } else if (payload.role === 'departmental_head') {
-      if (payload.department_id == null) {
-        query += ' WHERE rr.user_id = ?';
-        values.push(payload.id);
-      } else {
-        query += ' WHERE u.department_id = ?';
-        values.push(payload.department_id);
-      }
-    }
-    // admin + ceo: all redemptions
-
-    query += ' ORDER BY rr.id DESC';
 
     const [redemptions] = await pool.execute<RedemptionRequestRow[]>(query, values);
 

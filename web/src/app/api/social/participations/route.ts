@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get('status') as ApprovalStatus | 'all') || 'all';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
     const includeMeta = searchParams.get('meta') === '1';
     const activityIdParam = searchParams.get('activity_id');
 
@@ -42,8 +43,10 @@ export async function GET(request: NextRequest) {
       departmentId?: number | null;
       approvalStatus?: ApprovalStatus | 'all';
       activityId?: number;
+      search?: string;
     } = {
       approvalStatus: status,
+      search: search || undefined,
     };
 
     if (isEmployeeOnly) {

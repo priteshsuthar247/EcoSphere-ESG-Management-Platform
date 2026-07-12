@@ -3,7 +3,20 @@
 
 import { useCallback, useEffect, useState, useMemo } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface Policy {
   id: number;
@@ -46,8 +59,7 @@ export default function PoliciesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [ackingId, setAckingId] = useState<number | null>(null);
@@ -59,7 +71,9 @@ export default function PoliciesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/governance/policies?status=${statusFilter}`);
+      const res = await fetch(
+        `/api/governance/policies${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load policies");
       setItems(json.data.items);
@@ -70,7 +84,7 @@ export default function PoliciesPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -193,23 +207,15 @@ export default function PoliciesPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search title, category, version…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "active", label: "Active" },
@@ -217,15 +223,17 @@ export default function PoliciesPage() {
           { value: "inactive", label: "Inactive" },
           { value: "archived", label: "Archived" },
         ]}
-        extra={
-          canManage ? (
-            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
-              New policy
-            </button>
-          ) : null
-        }
-      />
-
+            
+            onApply={apply}
+            applying={loading}
+          />
+          {canManage && (
+            <ToolbarActions>
+              <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+                New policy
+              </button>
+            </ToolbarActions>
+          )}
       <div>
         <div>
           <div className="card-header">Policy registry</div>
@@ -239,7 +247,7 @@ export default function PoliciesPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {items.filter((p) => matchesSearch(search, [p.id, p.title, p.category, p.version, p.content])).map((p) => (
+              {items.map((p) => (
                 <div key={p.id} style={{ border: "1px solid var(--color-border-subtle)", padding: "var(--space-4)", background: "var(--color-surface)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
                     <div>

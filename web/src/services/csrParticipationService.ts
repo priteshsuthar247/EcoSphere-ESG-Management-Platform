@@ -47,6 +47,7 @@ export async function listParticipations(options?: {
   departmentId?: number | null;
   approvalStatus?: ApprovalStatus | 'all';
   activityId?: number;
+  search?: string;
 }): Promise<CsrParticipation[]> {
   try {
     const clauses: string[] = [];
@@ -68,6 +69,14 @@ export async function listParticipations(options?: {
     if (options?.activityId !== undefined) {
       clauses.push('p.csr_activity_id = ?');
       params.push(options.activityId);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(u.name LIKE ? OR u.email LIKE ? OR a.title LIKE ? OR d.name LIKE ?
+          OR p.rejection_reason LIKE ? OR CAST(p.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

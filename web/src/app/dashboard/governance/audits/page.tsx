@@ -3,7 +3,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -54,8 +67,7 @@ export default function AuditsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -65,7 +77,9 @@ export default function AuditsPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/governance/audits?meta=1&status=all`);
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
+      const res = await fetch(`/api/governance/audits?${params}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load audits");
       setItems(json.data.items);
@@ -77,7 +91,7 @@ export default function AuditsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -148,13 +162,7 @@ export default function AuditsPage() {
     return "chip-muted";
   }
 
-  const filtered = items.filter(
-    (a) =>
-      matchesStatus(statusFilter, a.status) &&
-      matchesSearch(search, [a.id, a.title, a.audit_type, a.department_name, a.auditor_name, a.external_auditor]),
-  );
-
-  const getSortValue = useCallback((row: Audit, key: string): unknown => {
+    const getSortValue = useCallback((row: Audit, key: string): unknown => {
     switch (key) {
       case "id": return row.id;
       case "title": return row.title;
@@ -168,7 +176,7 @@ export default function AuditsPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(items, getSortValue, "id");
 
   return (
     <div>
@@ -204,23 +212,15 @@ export default function AuditsPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search audits, department, auditor…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "planned", label: "Planned" },
@@ -228,13 +228,17 @@ export default function AuditsPage() {
           { value: "under_review", label: "Under review" },
           { value: "completed", label: "Completed" },
         ]}
-        extra={
-          <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+            
+      onApply={apply}
+
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
             New audit
           </button>
-        }
-      />
-
+          </ToolbarActions>
       <div>
         <div className="card-header">Audit registry</div>
         {loading ? (

@@ -4,7 +4,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -30,18 +43,13 @@ export default function ChallengeParticipationPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [processingId, setProcessingId] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
-  useEffect(() => {
-    fetchParticipations();
-  }, []);
-
-  async function fetchParticipations() {
+  const fetchParticipations = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gamification/participation");
+      const res = await fetch(`/api/gamification/participation${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -54,7 +62,11 @@ export default function ChallengeParticipationPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchParticipations();
+  }, [fetchParticipations]);
 
   async function handleReview(id: number, status: "approved" | "rejected") {
     setProcessingId(id);
@@ -82,13 +94,7 @@ export default function ChallengeParticipationPage() {
     }
   }
 
-  const filtered = participations.filter(
-    (p) =>
-      matchesStatus(statusFilter, p.approval_status) &&
-      matchesSearch(search, [p.id, p.user_name, p.user_email, p.challenge_title]),
-  );
-
-  const getSortValue = useCallback((row: Participation, key: string): unknown => {
+    const getSortValue = useCallback((row: Participation, key: string): unknown => {
     switch (key) {
       case "id": return row.id;
       case "employee": return row.user_name;
@@ -101,7 +107,7 @@ export default function ChallengeParticipationPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(participations, getSortValue, "id");
 
   return (
     <div>
@@ -119,16 +125,8 @@ export default function ChallengeParticipationPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
@@ -140,17 +138,21 @@ export default function ChallengeParticipationPage() {
       ) : (
         <div>
           <TableFilters
-            search={search}
+            search={draft.search}
             onSearchChange={setSearch}
             searchPlaceholder="Search employee, challenge…"
-            status={statusFilter}
-            onStatusChange={setStatusFilter}
+            status={draft.status}
+            onStatusChange={setStatus}
             statusOptions={[
               { value: "all", label: "All statuses" },
               { value: "pending", label: "Pending" },
               { value: "approved", label: "Approved" },
               { value: "rejected", label: "Rejected" },
             ]}
+          onApply={apply}
+
+          applying={loading}
+
           />
           <div className="card-header">Participation verification records</div>
           

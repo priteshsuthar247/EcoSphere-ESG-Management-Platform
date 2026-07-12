@@ -65,6 +65,7 @@ export interface CreateCarbonTransactionInput {
 export async function listCarbonTransactions(options?: {
   departmentId?: number | null;
   scope?: string;
+  search?: string;
   limit?: number;
 }): Promise<CarbonTransaction[]> {
   try {
@@ -79,6 +80,15 @@ export async function listCarbonTransactions(options?: {
     if (options?.scope) {
       clauses.push('ct.scope = ?');
       params.push(options.scope);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(ct.source_type LIKE ? OR ct.source_description LIKE ? OR ct.notes LIKE ?
+          OR ef.name LIKE ? OR d.name LIKE ? OR p.name LIKE ?
+          OR CAST(ct.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

@@ -4,7 +4,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -55,8 +68,7 @@ export default function EmployeeParticipationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [joinActivityId, setJoinActivityId] = useState("");
   const [joining, setJoining] = useState(false);
   const [submitId, setSubmitId] = useState<number | null>(null);
@@ -70,7 +82,8 @@ export default function EmployeeParticipationPage() {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ meta: "1", status: statusFilter });
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
       const res = await fetch(`/api/social/participations?${params}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load participations");
@@ -84,7 +97,7 @@ export default function EmployeeParticipationPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -195,11 +208,7 @@ export default function EmployeeParticipationPage() {
     return !items.some((p) => p.user_id === viewerId && p.csr_activity_id === a.id);
   });
 
-  const filtered = items.filter((p) =>
-    matchesSearch(search, [p.id, p.user_name, p.user_email, p.activity_title, p.user_department_name, p.approval_status]),
-  );
-
-  const getSortValue = useCallback((row: Participation, key: string): unknown => {
+    const getSortValue = useCallback((row: Participation, key: string): unknown => {
     switch (key) {
       case "id": return row.id;
       case "employee": return row.user_name;
@@ -211,7 +220,7 @@ export default function EmployeeParticipationPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(items, getSortValue, "id");
 
   return (
     <div>
@@ -239,16 +248,8 @@ export default function EmployeeParticipationPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="card-elevated">
@@ -276,19 +277,22 @@ export default function EmployeeParticipationPage() {
       </div>
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search employee, activity…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "pending", label: "Pending" },
           { value: "approved", label: "Approved" },
           { value: "rejected", label: "Rejected" },
         ]}
-      />
+      onApply={apply}
 
+      applying={loading}
+
+      />
       <div>
         <div>
           <div className="card-header">Participation ledger</div>

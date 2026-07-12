@@ -2,9 +2,22 @@
 // src/app/dashboard/environmental/emissions/page.tsx
 // Emission Factors master data
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -46,9 +59,9 @@ export default function EmissionFactorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [scopeFilter, setScopeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, setExtra, apply, queryString } = useListQuery({
+    extras: { scope: "all" },
+  });
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -58,9 +71,9 @@ export default function EmissionFactorsPage() {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ status: "all" });
-      if (scopeFilter !== "all") params.set("scope", scopeFilter);
-      const res = await fetch(`/api/environmental/emission-factors?${params}`);
+      const res = await fetch(
+        `/api/environmental/emission-factors${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || "Failed to load emission factors");
@@ -72,7 +85,7 @@ export default function EmissionFactorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [scopeFilter]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -160,16 +173,6 @@ export default function EmissionFactorsPage() {
     }
   }
 
-  const filtered = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          matchesStatus(statusFilter, item.status) &&
-          matchesSearch(search, [item.id, item.name, item.category, item.unit, item.source, item.scope]),
-      ),
-    [items, statusFilter, search],
-  );
-
   const getSortValue = useCallback((row: EmissionFactor, key: string) => {
     switch (key) {
       case "id": return row.id;
@@ -184,60 +187,43 @@ export default function EmissionFactorsPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(items, getSortValue, "id");
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          EMISSION FACTORS
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Maintain GHG conversion factors (kgCO₂e per unit) used for carbon accounting.
-        </p>
-      </div>
+      <PageHeader
+        title="Emission factors"
+        description="Maintain GHG conversion factors (kgCO₂e per unit) used for carbon accounting."
+      />
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"TOTAL"}</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.total ?? "–"}</div>
+          <div className="stat-label">TOTAL</div>
+          <div className="stat-value">{stats?.total ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", letterSpacing: "0.08em", marginBottom: "var(--space-2)" }}>{"ACTIVE"}</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
+          <div className="stat-label">ACTIVE</div>
+          <div className="stat-value" style={{ color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
         </div>
         {(["1", "2", "3"] as const).map((s) => (
           <div key={s} className="stat-card">
-            <div style={{ fontSize: "12px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>Scope {s}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-secondary)" }}>
+            <div className="stat-label">Scope {s}</div>
+            <div className="stat-value" style={{ color: "var(--color-secondary)" }}>
               {stats?.by_scope.find((x) => x.scope === s)?.count ?? 0}
             </div>
           </div>
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search name, category, unit, source…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "active", label: "Active" },
@@ -245,38 +231,41 @@ export default function EmissionFactorsPage() {
           { value: "draft", label: "Draft" },
           { value: "archived", label: "Archived" },
         ]}
-        extra={
-          <>
-            <div className="table-filter-field">
-              <label className="form-label">Scope</label>
-              <select className="form-input" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}>
-                <option value="all">All scopes</option>
-                <option value="1">Scope 1</option>
-                <option value="2">Scope 2</option>
-                <option value="3">Scope 3</option>
-              </select>
-            </div>
-            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
-              New factor
-            </button>
-          </>
+        extraFields={
+          <div className="table-filter-field">
+            <label className="form-label">Scope</label>
+            <select
+              className="form-input"
+              value={draft.extras?.scope ?? "all"}
+              onChange={(e) => setExtra("scope", e.target.value)}
+            >
+              <option value="all">All scopes</option>
+              <option value="1">Scope 1</option>
+              <option value="2">Scope 2</option>
+              <option value="3">Scope 3</option>
+            </select>
+          </div>
         }
+        onApply={apply}
+        applying={loading}
       />
+      <ToolbarActions>
+        <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+          New factor
+        </button>
+      </ToolbarActions>
 
       <div>
-        <div className="card-header">Factor registry</div>
+        <SectionTitle>Factor registry</SectionTitle>
         {loading ? (
-          <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-            <span className="spinner" />
-            <span style={{ marginLeft: "var(--space-3)" }}>Loading factors…</span>
-          </div>
+          <LoadingState label="Loading factors…" />
         ) : items.length === 0 ? (
           <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
             No emission factors found. Create one to begin carbon accounting.
           </div>
         ) : (
-          <div className="data-table-wrap">
-            <table className="data-table">
+          <DataTableWrap>
+            <DataTable>
               <thead>
                 <tr>
                   <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
@@ -287,13 +276,13 @@ export default function EmissionFactorsPage() {
                   <SortableTh label="Unit" columnKey="unit" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
                   <SortableTh label="Source" columnKey="source" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
                   <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
-                  <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
+                  <ActionTh />
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((item) => (
                   <tr key={item.id}>
-                    <td style={{ color: "var(--color-text-dim)" }}>{String(item.id).padStart(3, "0")}</td>
+                    <td className="col-id">{String(item.id).padStart(3, "0")}</td>
                     <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{item.name}</td>
                     <td>
                       <span className={`chip ${item.scope === "1" ? "chip-red" : item.scope === "2" ? "chip-amber" : "chip-cyan"}`}>
@@ -305,7 +294,7 @@ export default function EmissionFactorsPage() {
                     <td style={{ color: "var(--color-text-muted)" }}>{item.unit}</td>
                     <td style={{ color: "var(--color-text-dim)" }}>{item.source || "—"}</td>
                     <td>
-                      <span className={`chip ${item.status === "active" ? "chip-green" : "chip-muted"}`}>{item.status}</span>
+                      <StatusChip status={item.status} />
                     </td>
                     <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(item)} style={{ marginRight: "6px" }}>Edit</button>
@@ -316,8 +305,8 @@ export default function EmissionFactorsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </DataTable>
+          </DataTableWrap>
         )}
       </div>
 

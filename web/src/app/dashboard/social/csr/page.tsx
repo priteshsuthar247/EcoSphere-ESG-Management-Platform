@@ -4,7 +4,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface CsrActivity {
   id: number;
@@ -59,8 +72,7 @@ export default function CsrActivitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [joiningId, setJoiningId] = useState<number | null>(null);
@@ -71,7 +83,8 @@ export default function CsrActivitiesPage() {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ meta: "1", status: statusFilter });
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
       const [res, partRes] = await Promise.all([
         fetch(`/api/social/csr-activities?${params}`),
         fetch("/api/social/participations?meta=1"),
@@ -101,7 +114,7 @@ export default function CsrActivitiesPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -206,15 +219,7 @@ export default function CsrActivitiesPage() {
     return "chip-muted";
   }
 
-  const filteredItems = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          matchesStatus(statusFilter, item.status) &&
-          matchesSearch(search, [item.id, item.title, item.description, item.location, item.category_name]),
-      ),
-    [items, statusFilter, search],
-  );
+  const filteredItems = items;
 
   return (
     <div>
@@ -242,23 +247,15 @@ export default function CsrActivitiesPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search title, location, category…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "upcoming", label: "Upcoming" },
@@ -267,15 +264,17 @@ export default function CsrActivitiesPage() {
           { value: "cancelled", label: "Cancelled" },
           { value: "archived", label: "Archived" },
         ]}
-        extra={
-          canManage ? (
-            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
-              New activity
-            </button>
-          ) : null
-        }
-      />
-
+            
+            onApply={apply}
+            applying={loading}
+          />
+          {canManage && (
+            <ToolbarActions>
+              <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+                New activity
+              </button>
+            </ToolbarActions>
+          )}
       <div>
           <div className="card-header">Activity registry ({filteredItems.length})</div>
           {loading ? (

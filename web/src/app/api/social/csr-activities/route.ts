@@ -32,9 +32,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'all';
     const includeMeta = searchParams.get('meta') === '1';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
 
     const [items, stats] = await Promise.all([
-      listCsrActivities({ status }),
+      listCsrActivities({ status, search: search || undefined }),
       getCsrStats(),
     ]);
 

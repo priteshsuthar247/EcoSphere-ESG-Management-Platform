@@ -110,6 +110,7 @@ function normalizeProduct(row: Product): Product {
 
 export async function listProducts(options?: {
   status?: EntityStatus | 'all';
+  search?: string;
 }): Promise<Product[]> {
   try {
     const clauses: string[] = [];
@@ -119,6 +120,13 @@ export async function listProducts(options?: {
     if (options?.status && options.status !== 'all') {
       clauses.push('p.status = ?');
       params.push(options.status);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(p.name LIKE ? OR p.sku LIKE ? OR p.category LIKE ? OR CAST(p.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

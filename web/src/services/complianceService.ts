@@ -84,6 +84,7 @@ export async function listComplianceIssues(options?: {
   departmentId?: number | null;
   ownerUserId?: number;
   auditId?: number;
+  search?: string;
 }): Promise<ComplianceIssue[]> {
   try {
     await syncOverdueFlags();
@@ -106,6 +107,15 @@ export async function listComplianceIssues(options?: {
     if (options?.auditId !== undefined) {
       clauses.push('ci.audit_id = ?');
       params.push(options.auditId);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(ci.title LIKE ? OR ci.description LIKE ? OR ci.resolution_notes LIKE ?
+          OR a.title LIKE ? OR d.name LIKE ? OR o.name LIKE ?
+          OR CAST(ci.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

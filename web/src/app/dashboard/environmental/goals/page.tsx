@@ -4,7 +4,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface Goal {
   id: number;
@@ -54,8 +67,7 @@ export default function EnvironmentalGoalsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -66,7 +78,8 @@ export default function EnvironmentalGoalsPage() {
     setLoading(true);
     setError("");
     try {
-      const params = new URLSearchParams({ meta: "1", status: "all" });
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
       const res = await fetch(`/api/environmental/goals?${params}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load goals");
@@ -78,7 +91,7 @@ export default function EnvironmentalGoalsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -190,13 +203,7 @@ export default function EnvironmentalGoalsPage() {
     return "var(--color-error)";
   }
 
-  const filtered = items.filter(
-    (goal) =>
-      matchesStatus(statusFilter, goal.status) &&
-      matchesSearch(search, [goal.id, goal.name, goal.department_name, goal.unit, goal.description, goal.created_by_name]),
-  );
-
-  return (
+    return (
     <div>
       <div style={{ marginBottom: "var(--space-6)" }}>
         <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
@@ -232,23 +239,15 @@ export default function EnvironmentalGoalsPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search goals, department, unit…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "active", label: "Active" },
@@ -257,13 +256,17 @@ export default function EnvironmentalGoalsPage() {
           { value: "cancelled", label: "Cancelled" },
           { value: "archived", label: "Archived" },
         ]}
-        extra={
-          <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+            
+      onApply={apply}
+
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
             New goal
           </button>
-        }
-      />
-
+          </ToolbarActions>
       <div>
         <div className="card-header">Goal registry</div>
         {loading ? (
@@ -271,13 +274,13 @@ export default function EnvironmentalGoalsPage() {
             <span className="spinner" />
             <span style={{ marginLeft: "var(--space-3)" }}>Loading goals…</span>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
             No environmental goals found. Create a sustainability target to begin.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {filtered.map((goal) => (
+            {items.map((goal) => (
               <div
                 key={goal.id}
                 style={{

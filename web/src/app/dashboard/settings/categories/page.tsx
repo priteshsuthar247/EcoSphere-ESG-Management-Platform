@@ -4,7 +4,20 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -25,8 +38,7 @@ export default function CategoriesManagementPage() {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
   // Form Fields
   const [formName, setFormName] = useState("");
@@ -35,15 +47,11 @@ export default function CategoriesManagementPage() {
   const [formStatus, setFormStatus] = useState("active");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/admin/categories");
+      const res = await fetch(`/api/admin/categories${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -56,7 +64,11 @@ export default function CategoriesManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   function handleAddClick() {
     setIsAdding(true);
@@ -137,13 +149,7 @@ export default function CategoriesManagementPage() {
     esg_category: "chip-green",
   };
 
-  const filtered = categories.filter(
-    (c) =>
-      matchesStatus(statusFilter, c.status) &&
-      matchesSearch(search, [c.id, c.name, c.type, c.description, typeLabels[c.type]]),
-  );
-
-  const getSortValue = useCallback((row: Category, key: string): unknown => {
+    const getSortValue = useCallback((row: Category, key: string): unknown => {
     switch (key) {
       case "id": return row.id;
       case "name": return row.name;
@@ -154,48 +160,29 @@ export default function CategoriesManagementPage() {
     }
   }, []);
 
-  const { sorted, sortKey, sortDir, toggle } = useTableSort(filtered, getSortValue, "id");
+  const { sorted, sortKey, sortDir, toggle } = useTableSort(categories, getSortValue, "id");
   const formOpen = isAdding || editingCategory !== null;
 
   return (
     <div>
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 700, color: "var(--color-primary)", marginBottom: "4px" }}>
-          CLASSIFICATION REGISTRY
-        </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-          Define operational categories for CSR initiatives, gamification challenges, and ESG metrics.
-        </p>
-      </div>
+      <PageHeader
+        title="Classification registry"
+        description="Define operational categories for CSR initiatives, gamification challenges, and ESG metrics."
+      />
 
-      <div style={{ color: "var(--color-border-medium)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "var(--space-6)" }}>
-        {"─".repeat(60)}
-      </div>
-
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
-        <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
-          <span className="spinner" />
-          <span style={{ marginLeft: "var(--space-3)" }}>Loading categories…</span>
-        </div>
+        <LoadingState label="Loading categories…" />
       ) : (
         <>
           <TableFilters
-            search={search}
+            search={draft.search}
             onSearchChange={setSearch}
             searchPlaceholder="Search categories…"
-            status={statusFilter}
-            onStatusChange={setStatusFilter}
+            status={draft.status}
+            onStatusChange={setStatus}
             statusOptions={[
               { value: "all", label: "All statuses" },
               { value: "active", label: "Active" },
@@ -203,17 +190,18 @@ export default function CategoriesManagementPage() {
               { value: "draft", label: "Draft" },
               { value: "archived", label: "Archived" },
             ]}
-            extra={
-              <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
-                New category
-              </button>
-            }
+            onApply={apply}
+            applying={loading}
           />
-
+          <ToolbarActions>
+            <button type="button" onClick={handleAddClick} className="btn btn-primary btn-md">
+              New category
+            </button>
+          </ToolbarActions>
           <div>
-            <div className="card-header">Categories master register</div>
-            <div className="data-table-wrap">
-              <table className="data-table">
+            <SectionTitle>Categories master register</SectionTitle>
+            <DataTableWrap>
+              <DataTable>
                 <thead>
                   <tr>
                     <SortableTh label="ID" columnKey="id" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
@@ -221,21 +209,17 @@ export default function CategoriesManagementPage() {
                     <SortableTh label="Module type" columnKey="type" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
                     <SortableTh label="Description" columnKey="description" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
                     <SortableTh label="Status" columnKey="status" sortKey={sortKey} sortDir={sortDir} onSort={toggle} />
-                    <th className="sortable-th" style={{ textAlign: "center", cursor: "default" }}>Action</th>
+                    <ActionTh />
                   </tr>
                 </thead>
                 <tbody>
                   {sorted.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        No categories found.
-                      </td>
-                    </tr>
+                    <DataTableEmptyRow colSpan={6} message="No categories found." />
                   ) : (
                     sorted.map((c) => (
-                      <tr key={c.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-dim)" }}>{String(c.id).padStart(3, "0")}</td>
-                        <td style={{ padding: "10px var(--space-3)", color: "var(--color-text-primary)", fontWeight: 500 }}>{c.name}</td>
+                      <tr key={c.id}>
+                        <td className="col-id">{String(c.id).padStart(3, "0")}</td>
+                        <td style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{c.name}</td>
                         <td style={{ padding: "10px var(--space-3)" }}>
                           <span className={`chip ${typeChips[c.type] ?? "chip-muted"}`}>
                             {typeLabels[c.type] ?? c.type}
@@ -252,8 +236,8 @@ export default function CategoriesManagementPage() {
                     ))
                   )}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            </DataTableWrap>
           </div>
 
           <Modal

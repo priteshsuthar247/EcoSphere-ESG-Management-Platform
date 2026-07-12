@@ -21,11 +21,13 @@ export default function SortableTh({
   align = "left",
 }: Props) {
   const active = sortKey === columnKey;
-  const arrow = !active ? "↕" : sortDir === "asc" ? "↑" : "↓";
+  const title = active
+    ? `Sorted ${sortDir === "asc" ? "ascending" : "descending"} — click to reverse`
+    : `Sort by ${label} (ascending first)`;
 
   return (
     <th
-      className={`sortable-th${active ? " sortable-th-active" : ""}`}
+      className={`sortable-th${active ? " sortable-th-active" : ""} sortable-th-${sortDir}`}
       style={{ textAlign: align }}
       onClick={() => onSort(columnKey)}
       onKeyDown={(e) => {
@@ -36,12 +38,18 @@ export default function SortableTh({
       }}
       tabIndex={0}
       role="columnheader"
+      title={title}
       aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
     >
       <span className="sortable-th-inner">
         {label}
-        <span className="sortable-th-icon" aria-hidden>
-          {arrow}
+        <span className="sortable-th-icons" aria-hidden>
+          <span className={`sort-arrow sort-asc${active && sortDir === "asc" ? " sort-on" : ""}`}>
+            ▲
+          </span>
+          <span className={`sort-arrow sort-desc${active && sortDir === "desc" ? " sort-on" : ""}`}>
+            ▼
+          </span>
         </span>
       </span>
     </th>

@@ -4,6 +4,9 @@
 import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 interface EmpStats extends RowDataPacket {
   esg_points_balance: number;
@@ -70,34 +73,34 @@ export default async function EmployeeDashboard() {
 
   return (
     <div>
-      <header className="page-header">
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
-          Employee
-        </div>
-        <h1>Your workspace</h1>
-        <p>
-          Welcome back, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>. Your ESG activity summary.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Employee"
+        title="Your workspace"
+        description={`Welcome back, ${userName}. Your ESG activity summary.`}
+      />
 
-      <div className="stats-grid section-gap">
+      <StatsGrid>
         {statCards.map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-label">{s.label}</div>
-            <div className="stat-value" style={{ color: s.color }}>
-              {s.value}
-              {s.suffix && (
-                <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4, fontWeight: 500 }}>
-                  {s.suffix}
-                </span>
-              )}
-            </div>
-          </div>
+          <StatCard
+            key={s.label}
+            label={s.label}
+            color={s.color}
+            value={
+              <>
+                {s.value}
+                {s.suffix ? (
+                  <span style={{ fontSize: 14, color: "var(--color-text-dim)", marginLeft: 4, fontWeight: 500 }}>
+                    {s.suffix}
+                  </span>
+                ) : null}
+              </>
+            }
+          />
         ))}
-      </div>
+      </StatsGrid>
 
       <section className="section-gap">
-        <div className="card-header">Recent notifications</div>
+        <SectionTitle>Recent notifications</SectionTitle>
         {notifications.length === 0 ? (
           <div className="card" style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
             No notifications. You’re all caught up.
@@ -134,22 +137,22 @@ export default async function EmployeeDashboard() {
         )}
       </section>
 
-      <div>
-        <div className="card-header">Quick actions</div>
+      <section>
+        <SectionTitle>Quick actions</SectionTitle>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
-            { label: "Browse CSR Activities",  href: "/dashboard/social/csr" },
-            { label: "Join a Challenge",        href: "/dashboard/gamification/challenges" },
-            { label: "View Badges",             href: "/dashboard/gamification/badges" },
-            { label: "Redeem Rewards",          href: "/dashboard/gamification/rewards" },
-            { label: "Read Policies",           href: "/dashboard/governance/policies" },
+            { label: "Browse CSR Activities", href: "/dashboard/social/csr" },
+            { label: "Join a Challenge", href: "/dashboard/gamification/challenges" },
+            { label: "View Badges", href: "/dashboard/gamification/badges" },
+            { label: "Redeem Rewards", href: "/dashboard/gamification/rewards" },
+            { label: "Read Policies", href: "/dashboard/governance/policies" },
           ].map((a) => (
             <a key={a.label} href={a.href} className="btn btn-secondary btn-md">
               {a.label}
             </a>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -2,7 +2,20 @@
 // Policy Acknowledgements — TerminalUI
 
 import { useCallback, useEffect, useState } from "react";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -42,15 +55,17 @@ export default function AcknowledgementsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [coverageSearch, setCoverageSearch] = useState("");
-  const [coverageStatus, setCoverageStatus] = useState("all");
+  const { draft, applied, setSearch, setStatus, apply, queryString } = useListQuery();
   const [logSearch, setLogSearch] = useState("");
+  const [logApplySearch, setLogApplySearch] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/governance/acknowledgements");
+      const res = await fetch(
+        `/api/governance/acknowledgements${queryString ? `?${queryString}` : ""}`,
+      );
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load acknowledgements");
       setItems(json.data.items ?? []);
@@ -61,21 +76,30 @@ export default function AcknowledgementsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const filteredCoverage = coverage.filter(
-    (c) =>
-      matchesStatus(coverageStatus, c.status) &&
-      matchesSearch(coverageSearch, [c.title, c.version, c.status]),
-  );
+  // Coverage is aggregated client-side from server payload; filter on applied values after Apply
+  const filteredCoverage = coverage.filter((c) => {
+    if (applied.status !== "all" && c.status !== applied.status) return false;
+    const q = applied.search.trim().toLowerCase();
+    if (!q) return true;
+    return [c.title, c.version, c.status].some((f) =>
+      String(f ?? "").toLowerCase().includes(q),
+    );
+  });
 
-  const filteredLog = items.filter((a) =>
-    matchesSearch(logSearch, [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address]),
-  );
+  // Log rows already search-filtered by API (queryString); optional secondary local apply
+  const filteredLog = items.filter((a) => {
+    const q = logApplySearch.trim().toLowerCase();
+    if (!q) return true;
+    return [a.id, a.user_name, a.user_email, a.user_department_name, a.policy_title, a.ip_address].some(
+      (f) => String(f ?? "").toLowerCase().includes(q),
+    );
+  });
 
   const getCoverageSort = useCallback((row: Coverage, key: string): unknown => {
     switch (key) {
@@ -131,11 +155,7 @@ export default function AcknowledgementsPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         {[
@@ -160,17 +180,19 @@ export default function AcknowledgementsPage() {
         <>
           <div style={{ marginBottom: "var(--space-8)" }}>
             <TableFilters
-              search={coverageSearch}
-              onSearchChange={setCoverageSearch}
+              search={draft.search}
+              onSearchChange={setSearch}
               searchPlaceholder="Search policies…"
-              status={coverageStatus}
-              onStatusChange={setCoverageStatus}
+              status={draft.status}
+              onStatusChange={setStatus}
               statusOptions={[
                 { value: "all", label: "All statuses" },
                 { value: "active", label: "Active" },
                 { value: "inactive", label: "Inactive" },
                 { value: "draft", label: "Draft" },
               ]}
+              onApply={apply}
+              applying={loading}
             />
             <div className="card-header">Coverage matrix</div>
             {sortedCoverage.length === 0 ? (
@@ -221,6 +243,10 @@ export default function AcknowledgementsPage() {
               search={logSearch}
               onSearchChange={setLogSearch}
               searchPlaceholder="Search acknowledgements by user, policy, dept…"
+              onApply={() => {
+                setLogApplySearch(logSearch);
+              }}
+              applying={loading}
             />
             <div className="card-header">Acknowledgement log</div>
             {sortedLog.length === 0 ? (

@@ -45,13 +45,35 @@ export async function GET(request: NextRequest) {
       return errorResponse('Access denied. Invalid token.', 401, 'UNAUTHORIZED');
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const statusParam = (searchParams.get('status') || 'all').trim();
+
     // Non full-access roles must not see draft/archived challenges
     const isFullAccess = payload.role === 'admin' || payload.role === 'ceo';
-    const statusFilter = isFullAccess
-      ? ''
-      : " WHERE c.status IN ('active', 'under_review', 'completed')";
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
 
-    const [rows] = await pool.execute<ChallengeDetail[]>(`
+    if (!isFullAccess) {
+      clauses.push(`c.status IN ('active', 'under_review', 'completed')`);
+    }
+    if (statusParam && statusParam !== 'all') {
+      clauses.push('c.status = ?');
+      params.push(statusParam);
+    }
+
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(c.title LIKE ? OR c.description LIKE ? OR cat.name LIKE ? OR CAST(c.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+    const [rows] = await pool.execute<ChallengeDetail[]>(
+      `
       SELECT 
         c.id, 
         c.title, 
@@ -67,9 +89,11 @@ export async function GET(request: NextRequest) {
         c.max_participants
       FROM challenges c
       LEFT JOIN categories cat ON cat.id = c.category_id
-      ${statusFilter}
+      ${where}
       ORDER BY c.id DESC
-    `);
+    `,
+      params,
+    );
 
     return successResponse(rows, 'Challenges retrieved successfully');
   } catch (err) {

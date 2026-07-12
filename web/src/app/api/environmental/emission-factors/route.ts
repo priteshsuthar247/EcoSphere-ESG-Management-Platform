@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get('status') as EntityStatus | 'all') || 'all';
     const scope = searchParams.get('scope') as EmissionScope | null;
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
 
     if (scope && !VALID_SCOPES.includes(scope)) {
       return errorResponse('Invalid scope filter', 400, 'VALIDATION_ERROR');
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       listEmissionFactors({
         status,
         scope: scope ?? undefined,
+        search: search || undefined,
       }),
       getEmissionFactorStats(),
     ]);

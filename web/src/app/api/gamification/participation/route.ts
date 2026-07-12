@@ -47,7 +47,42 @@ export async function GET(request: NextRequest) {
       return errorResponse('Access denied. Invalid token.', 401, 'UNAUTHORIZED');
     }
 
-    let query = `
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const status = (searchParams.get('status') || 'all').trim() || 'all';
+
+    const clauses: string[] = [];
+    const values: (string | number | boolean | Date | null)[] = [];
+
+    // Scope data by role (prevent department-wide / org-wide leaks)
+    if (payload.role === 'employee') {
+      clauses.push('cp.user_id = ?');
+      values.push(payload.id);
+    } else if (payload.role === 'departmental_head') {
+      if (payload.department_id == null) {
+        clauses.push('cp.user_id = ?');
+        values.push(payload.id);
+      } else {
+        clauses.push('u.department_id = ?');
+        values.push(payload.department_id);
+      }
+    }
+    // admin + ceo: all rows
+
+    if (status && status !== 'all') {
+      clauses.push('cp.approval_status = ?');
+      values.push(status);
+    }
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(u.name LIKE ? OR u.email LIKE ? OR c.title LIKE ? OR CAST(cp.id AS CHAR) LIKE ?)',
+      );
+      values.push(q, q, q, q);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const query = `
       SELECT 
         cp.id, 
         cp.user_id, 
@@ -64,26 +99,9 @@ export async function GET(request: NextRequest) {
       FROM challenge_participations cp
       JOIN users u ON u.id = cp.user_id
       JOIN challenges c ON c.id = cp.challenge_id
+      ${where}
+      ORDER BY cp.id DESC
     `;
-
-    const values: (string | number | boolean | Date | null)[] = [];
-
-    // Scope data by role (prevent department-wide / org-wide leaks)
-    if (payload.role === 'employee') {
-      query += ' WHERE cp.user_id = ?';
-      values.push(payload.id);
-    } else if (payload.role === 'departmental_head') {
-      if (payload.department_id == null) {
-        query += ' WHERE cp.user_id = ?';
-        values.push(payload.id);
-      } else {
-        query += ' WHERE u.department_id = ?';
-        values.push(payload.department_id);
-      }
-    }
-    // admin + ceo: all rows
-
-    query += ' ORDER BY cp.id DESC';
 
     const [rows] = await pool.execute<ParticipationRow[]>(query, values);
     return successResponse(rows, 'Participations list retrieved');

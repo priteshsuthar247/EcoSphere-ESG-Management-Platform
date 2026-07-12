@@ -24,15 +24,24 @@ export async function GET(request: NextRequest) {
     const isEmployee = user!.role === "employee";
     const deptFilter =
       user!.role === "departmental_head" ? user!.department_id : undefined;
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get("search") || searchParams.get("q") || "").trim();
+
+    const listOpts: {
+      userId?: number;
+      departmentId?: number | null;
+      search?: string;
+    } = {
+      search: search || undefined,
+    };
+    if (isEmployee) {
+      listOpts.userId = user!.id;
+    } else if (deptFilter != null) {
+      listOpts.departmentId = deptFilter;
+    }
 
     const [items, stats] = await Promise.all([
-      listTrainings(
-        isEmployee
-          ? { userId: user!.id }
-          : deptFilter != null
-            ? { departmentId: deptFilter }
-            : undefined,
-      ),
+      listTrainings(listOpts),
       getTrainingStats(
         isEmployee
           ? undefined

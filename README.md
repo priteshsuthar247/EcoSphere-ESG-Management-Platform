@@ -2,7 +2,7 @@
 
 **Odoo Hackathon 2026** · Environmental · Social · Governance · Gamification
 
-EcoSphere is a full-stack ESG (Environmental, Social, and Governance) management platform that helps organizations measure sustainability metrics, run CSR programs, track compliance, and engage employees through challenges, badges, XP, and rewards — all from a unified TerminalUI-styled dashboard.
+EcoSphere is a full-stack ESG (Environmental, Social, and Governance) management platform that helps organizations measure sustainability metrics, run CSR programs, track compliance, and engage employees through challenges, badges, XP, and rewards — all from a unified **Notion-inspired daylight** dashboard (see [Design system](#design-system) and `DESIGN.md`).
 
 | | |
 |--|--|
@@ -101,7 +101,7 @@ Admin and CEO share **identical** privileges. Navigation and middleware enforce 
 |-------|--------|
 | Framework | Next.js **14.2** (App Router) |
 | Language | TypeScript |
-| UI | React 18, Tailwind CSS, custom TerminalUI (`globals.css`) |
+| UI | React 18, Tailwind CSS, **Notion-inspired daylight** design system (`DESIGN.md` → `web/src/app/globals.css`) |
 | Database | MySQL via `mysql2` connection pool |
 | Auth | `jsonwebtoken` + `jose` (Edge middleware), `bcryptjs` |
 | Mail | `nodemailer` |
@@ -115,7 +115,7 @@ Admin and CEO share **identical** privileges. Navigation and middleware enforce 
 ```text
 ecosphere/                          # monorepo root
 ├── README.md                       # this file
-├── DESIGN.md                       # design notes
+├── DESIGN.md                       # Notion-inspired daylight design system (source of truth)
 ├── Odoo Hackathon 2026.md          # challenge brief
 ├── EcoSphere ESG Management Platform.pdf
 ├── web/                            # Next.js application
@@ -125,13 +125,18 @@ ecosphere/                          # monorepo root
 │   │   ├── seed-and-test-api.mjs
 │   │   ├── verify-api.mjs
 │   │   └── award-eligible-badges.mjs
+│   ├── colour.md                   # CSS token map (mirrors DESIGN.md palette)
 │   └── src/
 │       ├── app/
 │       │   ├── api/                # REST endpoints
 │       │   ├── dashboard/          # role dashboards + modules
 │       │   ├── login|signup|forgot-password|reset-password/
-│       │   └── globals.css
+│       │   └── globals.css         # design tokens + layout (daylight UI)
 │       ├── components/
+│       │   ├── ui/                 # shared PageHeader, DataTable, filters, etc.
+│       │   ├── DashboardShell.tsx
+│       │   ├── Modal.tsx
+│       │   └── StatCharts.tsx
 │       ├── config/db.ts
 │       ├── lib/                    # auth, accessControl, email, logger
 │       ├── middleware.ts           # JWT + RBAC route guard
@@ -424,12 +429,47 @@ in `web/.env.local`, then **restart** `npm run dev` so password-reset links use 
 
 ## Design system
 
-UI follows a dark **TerminalUI** aesthetic:
+**Source of truth:** root [`DESIGN.md`](./DESIGN.md) (Notion-inspired daylight).  
+**Implementation tokens:** [`web/colour.md`](./web/colour.md) + CSS variables in [`web/src/app/globals.css`](./web/src/app/globals.css).  
+**Shared UI components:** `web/src/components/ui/*` (PageHeader, DataTable, TableFilters, StatCard, etc.).
 
-- Background `#0d0d0d`, primary green `#00ff41`, cyan secondary, amber tertiary
-- Monospace prompts, chip badges, CLI-style buttons
-- See `DESIGN.md` and `web/colour.md` for tokens and layout notes
-- Wireframe / brief: `Odoo Hackathon 2026.md`, `ecospher - 8 hours.png`
+EcoSphere does **not** use a dark “terminal / CLI” theme. The product UI is a **light, document-like** interface: warm paper canvas, white cards, hairline borders, Inter type, and a single structural accent blue.
+
+### Look & feel
+
+| Principle | Detail |
+|-----------|--------|
+| Canvas | Warm paper soft off-white `#f6f5f4` (`--color-bg` / `--color-canvas-soft`) — not pure clinical white |
+| Surfaces | White cards/panels `#ffffff` (`--color-surface`) with 1px hairline `#e6e6e6` |
+| Primary accent | Notion blue `#0075de` (`--color-primary`) — CTAs, links, focus, active nav only |
+| Pressed | Darker blue `#005bab` (`--color-primary-active`) |
+| Secondary / “night” | Deep indigo `#213183` (`--color-secondary`) for inverted emphasis, not full-app chrome |
+| Text | Near-black ink `#000000` headings; secondary `#31302e`; muted `#615d59`; faint `#a39e98` |
+| Typeface | **Inter** (stand-in for NotionInter) for all UI — no monospace display face |
+| Radius | Cards ~12px (`--radius-lg`); utility controls 8px (`--radius-md`); primary CTAs can use full pills |
+| Elevation | Hairline first; soft multi-layer shadow for raised cards; stronger stack for modals |
+| Spacing | 8px base (`--space-2` … `--space-8`); card padding ~24px |
+
+Decorative sticker accents (purple, pink, orange, teal, green, sky) may appear on chips and charts — they **never** paint primary CTAs.
+
+### UI building blocks
+
+- **Layout** — collapsible sidebar + topbar + content (`DashboardShell`); role-scoped nav
+- **Filters** — draft search/status fields + **Apply** (server-side query params); Add/New actions sit below filters, right-aligned
+- **Tables** — sortable column headers (asc/desc), consistent cell padding via `DataTable` / `SortableTh`
+- **Forms** — modal overlays for create/edit (not full-page detours)
+- **Charts** — lightweight SVG score bars / donuts (`StatCharts`), ESG pillars out of 100
+- **Status** — soft chips (`StatusChip`), not terminal `$` prompts
+
+### What was removed (legacy TerminalUI)
+
+Older docs mentioned a dark green-on-black CLI aesthetic (`#0d0d0d`, `#00ff41`, monospace prompts). That is **deprecated**. Do not reintroduce:
+
+- Dark full-page backgrounds as the default product chrome  
+- Neon green primary actions  
+- Monospace “CLI prompt” labels on every control  
+
+Wireframe / brief still useful for product scope: `Odoo Hackathon 2026.md`, `ecospher - 8 hours.png`.
 
 ---
 

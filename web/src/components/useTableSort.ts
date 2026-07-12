@@ -43,6 +43,7 @@ export function useTableSort<T>(
   const [sortKey, setSortKey] = useState<string | null>(defaultKey);
   const [sortDir, setSortDir] = useState<SortDir>(defaultDir);
 
+  // First click on a column → ascending; second → descending; third → ascending again
   const toggle = useCallback((key: string) => {
     setSortKey((prev) => {
       if (prev === key) {

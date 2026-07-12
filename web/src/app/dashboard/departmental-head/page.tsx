@@ -4,6 +4,9 @@
 import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 interface DeptStats extends RowDataPacket {
   dept_name: string | null;
@@ -50,32 +53,24 @@ export default async function DeptHeadDashboard() {
 
   return (
     <div>
-      <header className="page-header">
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
-          Department head
-        </div>
-        <h1>Department control</h1>
-        <p>
-          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
-          {stats?.dept_name && (
-            <> Department: <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{stats.dept_name}</span></>
-          )}
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Department head"
+        title="Department control"
+        description={
+          stats?.dept_name
+            ? `Welcome, ${userName}. Department: ${stats.dept_name}`
+            : `Welcome, ${userName}.`
+        }
+      />
 
-      <div className="stats-grid section-gap">
+      <StatsGrid>
         {statCards.map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-label">{s.label}</div>
-            <div className="stat-value" style={{ color: s.color }}>
-              {s.value}
-            </div>
-          </div>
+          <StatCard key={s.label} label={s.label} value={s.value} color={s.color} />
         ))}
-      </div>
+      </StatsGrid>
 
       <section>
-        <div className="card-header">Quick actions</div>
+        <SectionTitle>Quick actions</SectionTitle>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
             { label: "Review CSR Participations", href: "/dashboard/social/participation" },

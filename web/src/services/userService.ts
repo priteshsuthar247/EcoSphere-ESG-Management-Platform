@@ -158,12 +158,40 @@ export interface AdminUserListEntry extends RowDataPacket {
 /**
  * Get all users with their associated department names.
  * @param options.excludeAdminRoles — when true (CEO views), hide system admin accounts
+ * @param options.search — server-side text filter (name, email, department)
+ * @param options.status — status filter or 'all'
+ * @param options.role — role filter or 'all'
  */
 export async function getAllUsers(options?: {
   excludeAdminRoles?: boolean;
+  search?: string;
+  status?: string;
+  role?: string;
 }): Promise<AdminUserListEntry[]> {
   try {
-    const excludeAdmin = options?.excludeAdminRoles === true;
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
+
+    if (options?.excludeAdminRoles === true) {
+      clauses.push(`u.role <> 'admin'`);
+    }
+    if (options?.status && options.status !== 'all') {
+      clauses.push('u.status = ?');
+      params.push(options.status);
+    }
+    if (options?.role && options.role !== 'all') {
+      clauses.push('u.role = ?');
+      params.push(options.role);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(u.name LIKE ? OR u.email LIKE ? OR d.name LIKE ? OR CAST(u.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const [rows] = await pool.execute<AdminUserListEntry[]>(
       `
       SELECT 
@@ -180,9 +208,10 @@ export async function getAllUsers(options?: {
         u.last_login_at
       FROM users u
       LEFT JOIN departments d ON d.id = u.department_id
-      ${excludeAdmin ? "WHERE u.role <> 'admin'" : ''}
+      ${where}
       ORDER BY u.id ASC
     `,
+      params,
     );
     return rows;
   } catch (err) {

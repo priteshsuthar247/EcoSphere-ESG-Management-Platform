@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
 import Link from "next/link";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 
 interface Stats extends RowDataPacket {
   total_users: number;
@@ -57,35 +60,20 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <header className="page-header">
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
-          Admin
-        </div>
-        <h1>Executive overview</h1>
-        <p>
-          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
-          Full system access.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Admin"
+        title="Executive overview"
+        description={`Welcome, ${userName}. Full system access.`}
+      />
 
-      <div className="stats-grid section-gap">
+      <StatsGrid>
         {statCards.map((s) => (
-          <div key={s.label} className="stat-card">
-            <div className="stat-label">{s.label}</div>
-            <div
-              className="stat-value"
-              style={{
-                color: s.color,
-              }}
-            >
-              {s.value}
-            </div>
-          </div>
+          <StatCard key={s.label} label={s.label} value={s.value} color={s.color} />
         ))}
-      </div>
+      </StatsGrid>
 
       <section className="section-gap">
-        <div className="card-header">Quick actions</div>
+        <SectionTitle>Quick actions</SectionTitle>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {actions.map((a) => (
             <Link key={a.label} href={a.href} className="btn btn-secondary btn-md">
@@ -96,7 +84,7 @@ export default async function AdminDashboard() {
       </section>
 
       <section>
-        <div className="card-header">Module status</div>
+        <SectionTitle>Module status</SectionTitle>
         <div className="responsive-grid-2">
           {modules.map((m) => (
             <div

@@ -28,9 +28,17 @@ export async function GET(request: NextRequest) {
       return errorResponse('Access denied. Admin or CEO role required.', 403, 'UNAUTHORIZED');
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const status = searchParams.get('status') || 'all';
+    const role = searchParams.get('role') || 'all';
+
     // CEO must not see admin accounts in the user list
     const users = await getAllUsers({
       excludeAdminRoles: caller.role === 'ceo',
+      search: search || undefined,
+      status,
+      role,
     });
     return successResponse(users, 'Users retrieved successfully');
   } catch (err) {

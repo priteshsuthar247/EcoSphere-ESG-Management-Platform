@@ -29,13 +29,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get('status') as ComplianceStatus | 'all') || 'all';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
     const includeMeta = searchParams.get('meta') === '1';
 
     const deptFilter =
       user!.role === 'departmental_head' ? user!.department_id : undefined;
 
     const [items, stats] = await Promise.all([
-      listComplianceIssues({ status, departmentId: deptFilter }),
+      listComplianceIssues({ status, departmentId: deptFilter, search: search || undefined }),
       getComplianceStats({ departmentId: deptFilter }),
     ]);
 

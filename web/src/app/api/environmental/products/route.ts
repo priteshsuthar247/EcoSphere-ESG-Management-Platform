@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = (searchParams.get('status') as EntityStatus | 'all') || 'all';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
     const productId = searchParams.get('id');
 
     if (productId) {
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [items, stats] = await Promise.all([
-      listProducts({ status }),
+      listProducts({ status, search: search || undefined }),
       getProductStats(),
     ]);
 

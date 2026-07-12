@@ -3,7 +3,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 
 interface Issue {
   id: number;
@@ -52,8 +65,7 @@ export default function ComplianceIssuesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -63,7 +75,9 @@ export default function ComplianceIssuesPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/governance/compliance?meta=1&status=all`);
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
+      const res = await fetch(`/api/governance/compliance?${params}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load compliance issues");
       setItems(json.data.items);
@@ -76,7 +90,7 @@ export default function ComplianceIssuesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -188,23 +202,15 @@ export default function ComplianceIssuesPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search issues, owner, department…"
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
+        status={draft.status}
+        onStatusChange={setStatus}
         statusOptions={[
           { value: "all", label: "All statuses" },
           { value: "open", label: "Open" },
@@ -212,13 +218,17 @@ export default function ComplianceIssuesPage() {
           { value: "overdue", label: "Overdue" },
           { value: "resolved", label: "Resolved" },
         ]}
-        extra={
-          <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
+            
+      onApply={apply}
+
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={openCreate}>
             New issue
           </button>
-        }
-      />
-
+          </ToolbarActions>
       <div>
         <div className="card-header">Issue registry</div>
         {loading ? (
@@ -226,13 +236,13 @@ export default function ComplianceIssuesPage() {
             <span className="spinner" />
             <span style={{ marginLeft: "var(--space-3)" }}>Loading issues…</span>
           </div>
-        ) : items.filter((issue) => matchesStatus(statusFilter, issue.status) && matchesSearch(search, [issue.id, issue.title, issue.description, issue.owner_name, issue.department_name, issue.audit_title, issue.severity])).length === 0 ? (
+        ) : items.length === 0 ? (
           <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", color: "var(--color-text-muted)", textAlign: "center" }}>
             No compliance issues found.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {items.filter((issue) => matchesStatus(statusFilter, issue.status) && matchesSearch(search, [issue.id, issue.title, issue.description, issue.owner_name, issue.department_name, issue.audit_title, issue.severity])).map((issue) => (
+            {items.map((issue) => (
               <div key={issue.id} style={{ border: "1px solid var(--color-border-subtle)", padding: "var(--space-4)", background: issue.flagged_overdue ? "rgba(255, 0, 64, 0.04)" : "var(--color-surface)", borderRadius: "var(--radius-lg)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: "var(--space-2)" }}>
                   <div>

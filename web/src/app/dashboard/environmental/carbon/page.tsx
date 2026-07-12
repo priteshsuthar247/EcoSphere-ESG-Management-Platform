@@ -4,7 +4,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { ChartCard, SimpleBarChart } from "@/components/StatCharts";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
@@ -87,7 +100,7 @@ export default function CarbonTransactionsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [sourceFilter, setSourceFilter] = useState("all");
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -96,7 +109,9 @@ export default function CarbonTransactionsPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/environmental/carbon-transactions?meta=1");
+      const params = new URLSearchParams(queryString);
+      params.set("meta", "1");
+      const res = await fetch(`/api/environmental/carbon-transactions?${params}`);
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Failed to load carbon data");
       setItems(json.data.items);
@@ -107,7 +122,7 @@ export default function CarbonTransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryString]);
 
   useEffect(() => {
     fetchData();
@@ -164,22 +179,11 @@ export default function CarbonTransactionsPage() {
     }
   }
 
+  // Source type is a client convenience filter on the server-returned page slice
   const filteredTx = useMemo(
     () =>
-      items.filter(
-        (tx) =>
-          (sourceFilter === "all" || tx.source_type === sourceFilter) &&
-          matchesSearch(search, [
-            tx.id,
-            tx.source_type,
-            tx.emission_factor_name,
-            tx.department_name,
-            tx.product_name,
-            tx.source_reference,
-            tx.created_by_name,
-          ]),
-      ),
-    [items, sourceFilter, search],
+      items.filter((tx) => sourceFilter === "all" || tx.source_type === sourceFilter),
+    [items, sourceFilter],
   );
 
   const getTxSort = useCallback((tx: CarbonTx, key: string) => {
@@ -271,7 +275,7 @@ export default function CarbonTransactionsPage() {
       )}
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder="Search reference, factor, dept…"
         status={sourceFilter}
@@ -280,13 +284,17 @@ export default function CarbonTransactionsPage() {
           { value: "all", label: "All sources" },
           ...SOURCE_TYPES.map((s) => ({ value: s, label: s })),
         ]}
-        extra={
-          <button type="button" className="btn btn-primary btn-md" onClick={() => { setShowForm(true); setError(""); setSuccess(""); }}>
+            
+      onApply={apply}
+
+      applying={loading}
+
+      />
+          <ToolbarActions>
+            <button type="button" className="btn btn-primary btn-md" onClick={() => { setShowForm(true); setError(""); setSuccess(""); }}>
             Log transaction
           </button>
-        }
-      />
-
+          </ToolbarActions>
       <div>
         <div>
           <div className="card-header">Transaction ledger</div>

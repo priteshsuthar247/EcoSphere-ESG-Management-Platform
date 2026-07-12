@@ -51,16 +51,42 @@ export async function GET(request: NextRequest) {
       return errorResponse('Access denied. Invalid token.', 401, 'UNAUTHORIZED');
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+
     // Lowest tier first (Bronze → Diamond by points)
+    const badgeClauses: string[] = [];
+    const badgeParams: Array<string | number> = [];
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      badgeClauses.push(
+        '(name LIKE ? OR description LIKE ? OR CAST(id AS CHAR) LIKE ?)',
+      );
+      badgeParams.push(q, q, q);
+    }
+    const badgeWhere = badgeClauses.length ? `WHERE ${badgeClauses.join(' AND ')}` : '';
     const [badges] = await pool.execute<BadgeEntry[]>(
       `SELECT id, name, description, icon_url, unlock_rule, status
        FROM badges
+       ${badgeWhere}
        ORDER BY
          CAST(JSON_UNQUOTE(JSON_EXTRACT(unlock_rule, '$.points_required')) AS UNSIGNED) ASC,
          id ASC`,
+      badgeParams,
     );
 
-    const [awarded] = await pool.execute<AwardedBadgeRow[]>(`
+    const awardClauses: string[] = [];
+    const awardParams: Array<string | number> = [];
+    if (search) {
+      const q = `%${search.replace(/[%_]/g, '\\$&')}%`;
+      awardClauses.push(
+        '(u.name LIKE ? OR u.email LIKE ? OR b.name LIKE ? OR ub.awarded_reason LIKE ? OR CAST(ub.id AS CHAR) LIKE ?)',
+      );
+      awardParams.push(q, q, q, q, q);
+    }
+    const awardWhere = awardClauses.length ? `WHERE ${awardClauses.join(' AND ')}` : '';
+    const [awarded] = await pool.execute<AwardedBadgeRow[]>(
+      `
       SELECT 
         ub.id, 
         ub.user_id, 
@@ -73,8 +99,11 @@ export async function GET(request: NextRequest) {
       FROM user_badges ub
       JOIN users u ON u.id = ub.user_id
       JOIN badges b ON b.id = ub.badge_id
+      ${awardWhere}
       ORDER BY ub.id DESC
-    `);
+    `,
+      awardParams,
+    );
 
     return successResponse({ badges, awarded }, 'Badges data retrieved successfully');
   } catch (err) {

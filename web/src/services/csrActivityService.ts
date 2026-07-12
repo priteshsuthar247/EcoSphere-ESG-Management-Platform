@@ -65,6 +65,7 @@ function normalize(row: CsrActivity): CsrActivity {
 
 export async function listCsrActivities(options?: {
   status?: string | 'all';
+  search?: string;
 }): Promise<CsrActivity[]> {
   try {
     const clauses: string[] = [];
@@ -73,6 +74,13 @@ export async function listCsrActivities(options?: {
     if (options?.status && options.status !== 'all') {
       clauses.push('a.status = ?');
       params.push(options.status);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        '(a.title LIKE ? OR a.description LIKE ? OR a.location LIKE ? OR c.name LIKE ? OR CAST(a.id AS CHAR) LIKE ?)',
+      );
+      params.push(q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

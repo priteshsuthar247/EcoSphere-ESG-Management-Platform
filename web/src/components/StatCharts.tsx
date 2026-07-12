@@ -177,12 +177,10 @@ export function SimpleDonutChart({
       </svg>
       <ul className="chart-legend">
         {slices.map((s, i) => (
-          <li key={`${s.label}-${i}`}>
+          <li key={`${s.label}-${i}`} title={`${s.label}: ${formatValue(s.value)} (${s.percent}%)`}>
             <span className="chart-legend-swatch" style={{ background: s.color }} />
             <span className="chart-legend-label">{s.label}</span>
-            <span className="chart-legend-value">
-              {formatValue(s.value)} · {s.percent}%
-            </span>
+            <span className="chart-legend-value">{s.percent}%</span>
           </li>
         ))}
       </ul>

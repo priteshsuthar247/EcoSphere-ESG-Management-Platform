@@ -6,7 +6,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSessionRole } from "@/components/useSessionRole";
 import Modal from "@/components/Modal";
-import TableFilters, { matchesSearch, matchesStatus } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -47,8 +60,7 @@ export default function RewardsManagementPage() {
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
 
   const [isAdding, setIsAdding] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
   const [redemptionSearch, setRedemptionSearch] = useState("");
   const [redemptionStatus, setRedemptionStatus] = useState("all");
   const [formName, setFormName] = useState("");
@@ -62,16 +74,12 @@ export default function RewardsManagementPage() {
   // Redemption Action
   const [processingId, setProcessingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const [rewardsRes, meRes] = await Promise.all([
-        fetch("/api/gamification/rewards"),
+        fetch(`/api/gamification/rewards${queryString ? `?${queryString}` : ""}`),
         fetch("/api/auth/me"),
       ]);
       const json = await rewardsRes.json();
@@ -95,7 +103,11 @@ export default function RewardsManagementPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [queryString]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   async function handleRedeem(reward: Reward) {
     if (reward.stock_quantity <= 0 || reward.status !== "active") return;
@@ -190,18 +202,7 @@ export default function RewardsManagementPage() {
     }
   }
 
-  const filteredRewards = rewards.filter(
-    (r) =>
-      matchesStatus(statusFilter, r.status) &&
-      matchesSearch(search, [r.id, r.name, r.description, r.category]),
-  );
-  const filteredRedemptions = redemptions.filter(
-    (red) =>
-      matchesStatus(redemptionStatus, red.status) &&
-      matchesSearch(redemptionSearch, [red.id, red.user_name, red.user_email, red.reward_name]),
-  );
-
-  const getRedemptionSort = useCallback((row: Redemption, key: string): unknown => {
+      const getRedemptionSort = useCallback((row: Redemption, key: string): unknown => {
     switch (key) {
       case "id": return row.id;
       case "recipient": return row.user_name;
@@ -218,7 +219,7 @@ export default function RewardsManagementPage() {
     sortKey: redSortKey,
     sortDir: redSortDir,
     toggle: redToggle,
-  } = useTableSort(filteredRedemptions, getRedemptionSort, "id");
+  } = useTableSort(redemptions, getRedemptionSort, "id");
 
   return (
     <div>
@@ -242,16 +243,8 @@ export default function RewardsManagementPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{success}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
+      {success && <AlertBanner type="success">{success}</AlertBanner>}
 
       {loading ? (
         <div style={{ padding: "var(--space-8)", textAlign: "center" }}>
@@ -262,28 +255,30 @@ export default function RewardsManagementPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)" }}>
           <div>
             <TableFilters
-              search={search}
+              search={draft.search}
               onSearchChange={setSearch}
               searchPlaceholder="Search rewards…"
-              status={statusFilter}
-              onStatusChange={setStatusFilter}
+              status={draft.status}
+              onStatusChange={setStatus}
               statusOptions={[
                 { value: "all", label: "All statuses" },
                 { value: "active", label: "Active" },
                 { value: "inactive", label: "Inactive" },
                 { value: "draft", label: "Draft" },
               ]}
-              extra={
-                isAdmin ? (
-                  <button type="button" onClick={() => setIsAdding(true)} className="btn btn-primary btn-md">
-                    New reward item
-                  </button>
-                ) : null
-              }
+            onApply={apply}
+            applying={loading}
             />
+            {isAdmin && (
+              <ToolbarActions>
+                <button type="button" onClick={() => setIsAdding(true)} className="btn btn-primary btn-md">
+                  New reward item
+                </button>
+              </ToolbarActions>
+            )}
             <div className="card-header">Active rewards catalog</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "var(--space-4)" }}>
-              {filteredRewards.map((r) => (
+              {rewards.map((r) => (
                 <div
                   key={r.id}
                   className="card"
@@ -360,7 +355,10 @@ export default function RewardsManagementPage() {
                 { value: "fulfilled", label: "Fulfilled" },
                 { value: "cancelled", label: "Cancelled" },
               ]}
-            />
+            
+            onApply={apply}
+            applying={loading}
+          />
             <div className="card-header">Redemption requests queue</div>
             <div className="data-table-wrap">
               <table className="data-table">

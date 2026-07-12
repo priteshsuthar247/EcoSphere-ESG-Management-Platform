@@ -40,10 +40,12 @@ export async function GET(request: NextRequest) {
       // non-fatal
     }
 
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+
     // Employees (or mine=1): return own acks + pending
     if (mine || !canViewAll) {
       const [items, pending] = await Promise.all([
-        listAcknowledgements({ userId: user!.id }),
+        listAcknowledgements({ userId: user!.id, search: search || undefined }),
         listPendingForUser(user!.id),
       ]);
       return successResponse(
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
       user!.role === 'departmental_head' ? user!.department_id : undefined;
 
     const [items, stats, coverage] = await Promise.all([
-      listAcknowledgements({ departmentId: deptFilter }),
+      listAcknowledgements({ departmentId: deptFilter, search: search || undefined }),
       getAcknowledgementStats({ departmentId: deptFilter }),
       getCoverageMatrix(),
     ]);

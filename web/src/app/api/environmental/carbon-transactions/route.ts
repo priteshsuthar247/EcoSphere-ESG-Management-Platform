@@ -50,9 +50,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const includeMeta = searchParams.get('meta') === '1';
+    const search = (searchParams.get('search') || searchParams.get('q') || '').trim();
+    const scope = searchParams.get('scope') || undefined;
 
     const [items, summary] = await Promise.all([
-      listCarbonTransactions({ departmentId: deptFilter }),
+      listCarbonTransactions({
+        departmentId: deptFilter,
+        search: search || undefined,
+        scope: scope && scope !== 'all' ? scope : undefined,
+      }),
       getCarbonSummary({ departmentId: deptFilter }),
     ]);
 

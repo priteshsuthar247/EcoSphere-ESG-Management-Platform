@@ -65,6 +65,7 @@ function normalize(row: Audit): Audit {
 export async function listAudits(options?: {
   status?: AuditStatus | 'all';
   departmentId?: number | null;
+  search?: string;
 }): Promise<Audit[]> {
   try {
     const clauses: string[] = [];
@@ -77,6 +78,15 @@ export async function listAudits(options?: {
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('a.department_id = ?');
       params.push(options.departmentId);
+    }
+    if (options?.search?.trim()) {
+      const q = `%${options.search.trim().replace(/[%_]/g, '\\$&')}%`;
+      clauses.push(
+        `(a.title LIKE ? OR a.audit_type LIKE ? OR a.findings_summary LIKE ?
+          OR a.external_auditor LIKE ? OR d.name LIKE ? OR au.name LIKE ?
+          OR CAST(a.id AS CHAR) LIKE ?)`,
+      );
+      params.push(q, q, q, q, q, q, q);
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

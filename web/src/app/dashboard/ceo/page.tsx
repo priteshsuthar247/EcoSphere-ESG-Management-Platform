@@ -5,6 +5,9 @@ import { headers } from "next/headers";
 import pool from "@/config/db";
 import type { RowDataPacket } from "mysql2";
 import { ChartCard, SimpleBarChart } from "@/components/StatCharts";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard, { StatsGrid } from "@/components/ui/StatCard";
+import SectionTitle from "@/components/ui/SectionTitle";
 import {
   getOrgOverallEsgScore,
   getLatestDepartmentScores,
@@ -101,33 +104,27 @@ export default async function CEODashboard() {
 
   return (
     <div>
-      <header className="page-header">
-        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: "var(--space-2)" }}>
-          CEO
-        </div>
-        <h1>Executive ESG overview</h1>
-        <p>
-          Welcome, <span style={{ color: "var(--color-ink-secondary)", fontWeight: 600 }}>{userName}</span>.
-          Company-wide ESG performance
-          {useLive
-            ? ` (weights E ${Math.round(overall.weights.environmental * 100)}% / S ${Math.round(overall.weights.social * 100)}% / G ${Math.round(overall.weights.governance * 100)}%).`
-            : "."}
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="CEO"
+        title="Executive ESG overview"
+        description={
+          useLive
+            ? `Welcome, ${userName}. Company-wide ESG performance (weights E ${Math.round(overall.weights.environmental * 100)}% / S ${Math.round(overall.weights.social * 100)}% / G ${Math.round(overall.weights.governance * 100)}%).`
+            : `Welcome, ${userName}. Company-wide ESG performance.`
+        }
+      />
 
-      <div className="stats-grid section-gap">
+      <StatsGrid>
         {esgMetrics.map((m) => (
-          <div key={m.label} className="stat-card">
-            <div className="stat-label">{m.label}</div>
-            <div className="stat-value" style={{ color: m.color }}>
-              {m.value}
-            </div>
-            {typeof m.value === "number" && (
-              <div className="stat-hint">out of 100</div>
-            )}
-          </div>
+          <StatCard
+            key={m.label}
+            label={m.label}
+            value={m.value}
+            color={m.color}
+            hint={typeof m.value === "number" ? "out of 100" : undefined}
+          />
         ))}
-      </div>
+      </StatsGrid>
 
       <div className="charts-row section-gap">
         <ChartCard
@@ -167,7 +164,7 @@ export default async function CEODashboard() {
       </div>
 
       <section className="section-gap">
-        <div className="card-header">Department ESG ranking</div>
+        <SectionTitle>Department ESG ranking</SectionTitle>
         {topDepts.length === 0 ? (
           <div className="card" style={{ color: "var(--color-text-muted)", fontSize: 14 }}>
             No ESG scores recorded yet. Run the scoring engine to populate rankings.

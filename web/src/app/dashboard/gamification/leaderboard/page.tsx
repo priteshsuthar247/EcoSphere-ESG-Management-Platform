@@ -3,7 +3,20 @@
 // Leaderboard Dashboard - TerminalUI design system
 
 import { useState, useEffect, useCallback } from "react";
-import TableFilters, { matchesSearch } from "@/components/TableFilters";
+import TableFilters from "@/components/TableFilters";
+import { useListQuery } from "@/components/useListQuery";
+import PageHeader from "@/components/ui/PageHeader";
+import AlertBanner from "@/components/ui/AlertBanner";
+import LoadingState from "@/components/ui/LoadingState";
+import ToolbarActions from "@/components/ui/ToolbarActions";
+import SectionTitle from "@/components/ui/SectionTitle";
+import StatusChip from "@/components/ui/StatusChip";
+import {
+  DataTableWrap,
+  DataTable,
+  DataTableEmptyRow,
+  ActionTh,
+} from "@/components/ui/DataTable";
 import { useTableSort } from "@/components/useTableSort";
 import SortableTh from "@/components/SortableTh";
 
@@ -34,7 +47,7 @@ export default function LeaderboardPage() {
   
   // Standings view toggle: 'individual' | 'departmental'
   const [viewMode, setViewMode] = useState<"individual" | "departmental">("individual");
-  const [search, setSearch] = useState("");
+  const { draft, setSearch, setStatus, apply, queryString } = useListQuery();
 
   useEffect(() => {
     fetchLeaderboard();
@@ -44,7 +57,7 @@ export default function LeaderboardPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gamification/leaderboard");
+      const res = await fetch(`/api/gamification/leaderboard${queryString ? `?${queryString}` : ""}`);
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -60,14 +73,7 @@ export default function LeaderboardPage() {
     }
   }
 
-  const filteredEmployees = employees.filter((e) =>
-    matchesSearch(search, [e.name, e.email, e.department_name]),
-  );
-  const filteredDepartments = departments.filter((d) =>
-    matchesSearch(search, [d.name, d.code]),
-  );
-
-  const getEmployeeSort = useCallback((row: EmployeeRank, key: string): unknown => {
+      const getEmployeeSort = useCallback((row: EmployeeRank, key: string): unknown => {
     switch (key) {
       case "employee": return row.name;
       case "department": return row.department_name ?? "";
@@ -93,14 +99,14 @@ export default function LeaderboardPage() {
     sortKey: empSortKey,
     sortDir: empSortDir,
     toggle: empToggle,
-  } = useTableSort(filteredEmployees, getEmployeeSort, "total_xp", "desc");
+  } = useTableSort(employees, getEmployeeSort, "total_xp", "desc");
 
   const {
     sorted: sortedDepartments,
     sortKey: deptSortKey,
     sortDir: deptSortDir,
     toggle: deptToggle,
-  } = useTableSort(filteredDepartments, getDeptSort, "total_score", "desc");
+  } = useTableSort(departments, getDeptSort, "total_score", "desc");
 
   return (
     <div>
@@ -118,11 +124,7 @@ export default function LeaderboardPage() {
         {"─".repeat(60)}
       </div>
 
-      {error && (
-        <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <AlertBanner type="error">{error}</AlertBanner>}
 
       <div style={{ display: "flex", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
         <button
@@ -144,9 +146,11 @@ export default function LeaderboardPage() {
       </div>
 
       <TableFilters
-        search={search}
+        search={draft.search}
         onSearchChange={setSearch}
         searchPlaceholder={viewMode === "individual" ? "Search employees, department…" : "Search departments…"}
+            onApply={apply}
+            applying={loading}
       />
 
       {loading ? (
