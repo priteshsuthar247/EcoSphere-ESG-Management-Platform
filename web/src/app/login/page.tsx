@@ -1,32 +1,14 @@
 "use client";
-// Login page — Notion-inspired design system (DESIGN.md)
+// Login — Tailwind utilities (DESIGN.md)
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-function EyeIcon({ off }: { off?: boolean }) {
-  if (off) {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -44,7 +26,6 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
         body: JSON.stringify({ email, password }),
       });
 
@@ -56,23 +37,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Hard navigation is required so the new JWT cookie is used and
-      // Next.js does not reuse a previous user's cached dashboard (e.g. admin).
-      const role = typeof json.data?.role === "string" ? json.data.role : "";
-      const fallbackByRole: Record<string, string> = {
-        admin: "/dashboard/admin",
-        ceo: "/dashboard/ceo",
-        departmental_head: "/dashboard/departmental-head",
-        employee: "/dashboard/employee",
-      };
-      const target =
-        (typeof json.data?.redirectTo === "string" && json.data.redirectTo.startsWith("/dashboard/")
-          ? json.data.redirectTo
-          : null) ||
-        fallbackByRole[role] ||
-        "/dashboard/employee";
-
-      window.location.assign(target);
+      router.push(json.data.redirectTo);
     } catch {
       setError("Network error. Check your connection.");
       setLoading(false);
@@ -80,155 +45,117 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-page">
-      {/* Dark indigo hero band */}
-      <div className="auth-left">
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 440 }}>
-          <h1
-            style={{
-              fontSize: 40,
-              fontWeight: 700,
-              lineHeight: 1.1,
-              letterSpacing: "-1px",
-              color: "#ffffff",
-              marginBottom: "var(--space-4)",
-            }}
-          >
+    <div className="grid min-h-screen overflow-hidden bg-canvas lg:grid-cols-2">
+      {/* Night band hero */}
+      <div className="relative hidden flex-col justify-center overflow-hidden bg-secondary px-12 py-16 text-white lg:flex">
+        <div className="relative z-10 max-w-md">
+          <span className="mb-6 inline-flex rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
+            ESG Management Platform
+          </span>
+          <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-white">
             Measure, manage, and improve ESG performance.
           </h1>
-          <p
-            style={{
-              fontSize: 16,
-              lineHeight: 1.5,
-              color: "rgba(255,255,255,0.78)",
-              marginBottom: "var(--space-8)",
-            }}
-          >
-            Carbon accounting, social impact, governance compliance, and
-            engagement — in one calm workspace.
+          <p className="mb-8 text-base leading-relaxed text-white/80">
+            Carbon accounting, social impact, governance compliance, and engagement — in one calm
+            workspace.
           </p>
+          <div className="flex flex-wrap gap-8">
+            {[
+              { label: "Modules", value: "7" },
+              { label: "Roles", value: "4" },
+              { label: "Status", value: "Live" },
+            ].map((s) => (
+              <div key={s.label}>
+                <div className="text-xs font-semibold text-white/55">{s.label}</div>
+                <div className="text-[1.75rem] font-bold tracking-tight text-white">{s.value}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Form card */}
-      <div className="auth-right">
-        <div className="auth-form-container">
-          <div style={{ marginBottom: "var(--space-6)" }}>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--color-primary)",
-                marginBottom: "var(--space-2)",
-              }}
-            >
-              Sign in
-            </div>
-            <h1
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                letterSpacing: "-0.4px",
-                color: "var(--color-text-primary)",
-                marginBottom: 6,
-              }}
-            >
-              Welcome back
-            </h1>
-            <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-              Enter your credentials to continue to EcoSphere.
-            </p>
+      {/* Form */}
+      <div className="flex flex-col items-center justify-center overflow-y-auto bg-canvas px-4 py-10 sm:px-8">
+        <div className="w-full max-w-[420px] rounded-lg border border-hairline bg-surface p-8 shadow-soft">
+          <div className="mb-6">
+            <div className="mb-1.5 text-xs font-semibold text-primary">Sign in</div>
+            <h1 className="mb-1.5 text-[1.625rem] font-bold tracking-tight text-ink">Welcome back</h1>
+            <p className="text-sm text-ink-muted">Enter your credentials to continue to EcoSphere.</p>
           </div>
 
           {error && (
-            <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-              <span>{error}</span>
+            <div
+              className="mb-4 rounded-md border border-[rgba(224,62,62,0.3)] bg-[rgba(224,62,62,0.06)] px-4 py-3 text-sm text-[#b42318]"
+              role="alert"
+            >
+              {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="login-email">
-                  Email
-                </label>
-                <input
-                  ref={emailRef}
-                  id="login-email"
-                  className="form-input"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="login-password">
-                  Password
-                </label>
-                <div className="password-field">
-                  <input
-                    id="login-password"
-                    className="form-input"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    placeholder="Your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword((v) => !v)}
-                    disabled={loading}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    <EyeIcon off={showPassword} />
-                  </button>
-                </div>
-              </div>
-
-              <button
-                id="login-submit"
-                type="submit"
-                className={`btn btn-primary btn-lg btn-full${loading ? " btn-loading" : ""}`}
-                disabled={loading || !email || !password}
-                style={{ marginTop: "var(--space-2)" }}
-              >
-                {loading ? "Signing in…" : "Sign in"}
-              </button>
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="login-email" className="text-xs font-semibold text-ink-muted">
+                Email
+              </label>
+              <input
+                ref={emailRef}
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                className="w-full rounded-xs border border-line-medium bg-surface px-3 py-2 text-[0.9375rem] text-ink outline-none transition focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,117,222,0.15)] disabled:bg-canvas disabled:text-ink-faint"
+              />
             </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="login-password" className="text-xs font-semibold text-ink-muted">
+                Password
+              </label>
+              <input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+                className="w-full rounded-xs border border-line-medium bg-surface px-3 py-2 text-[0.9375rem] text-ink outline-none transition focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,117,222,0.15)] disabled:bg-canvas disabled:text-ink-faint"
+              />
+            </div>
+
+            <button
+              id="login-submit"
+              type="submit"
+              disabled={loading || !email || !password}
+              className="mt-1 w-full rounded-full bg-primary px-6 py-2.5 text-base font-medium text-white transition hover:bg-primary-active disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
           </form>
 
-          <div
-            style={{
-              marginTop: "var(--space-6)",
-              fontSize: 14,
-              color: "var(--color-text-muted)",
-              textAlign: "center",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
+          <div className="mt-6 flex flex-col gap-2 text-center text-sm text-ink-muted">
             <div>
               No account?{" "}
-              <Link href="/signup" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+              <Link href="/signup" className="font-semibold text-primary hover:text-primary-active">
                 Create one
               </Link>
             </div>
             <div>
-              <Link href="/forgot-password" style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>
+              <Link href="/forgot-password" className="font-medium text-ink-muted hover:text-ink-secondary">
                 Forgot password?
               </Link>
             </div>
+          </div>
+
+          <div className="mt-6 rounded-md border border-hairline bg-canvas p-3 text-xs leading-relaxed text-ink-faint">
+            <div className="mb-1 font-semibold text-ink-muted">Seed admin (after setup_db.sql)</div>
+            <div>email: admin@ecosphere.com</div>
+            <div>pass: Admin@123</div>
           </div>
         </div>
       </div>

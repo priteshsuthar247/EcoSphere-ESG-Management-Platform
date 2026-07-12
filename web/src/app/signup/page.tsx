@@ -1,5 +1,5 @@
 "use client";
-// Sign-up page — Notion-inspired design system (DESIGN.md)
+// Sign-up — Tailwind utilities (DESIGN.md)
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -12,26 +12,11 @@ function PasswordStrength({ password }: { password: string }) {
     { label: "Lowercase", pass: /[a-z]/.test(password) },
     { label: "Number", pass: /\d/.test(password) },
   ];
-
   if (!password) return null;
-
   return (
-    <div
-      style={{
-        fontSize: 12,
-        color: "var(--color-text-dim)",
-        lineHeight: 1.6,
-        marginTop: 6,
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "8px 12px",
-      }}
-    >
+    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
       {checks.map((c) => (
-        <span
-          key={c.label}
-          style={{ color: c.pass ? "var(--color-success)" : "var(--color-text-dim)" }}
-        >
+        <span key={c.label} className={c.pass ? "text-success" : "text-ink-faint"}>
           {c.pass ? "✓" : "○"} {c.label}
         </span>
       ))}
@@ -39,24 +24,8 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-function EyeIcon({ off }: { off?: boolean }) {
-  if (off) {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
+const inputClass =
+  "w-full rounded-xs border border-line-medium bg-surface px-3 py-2 text-[0.9375rem] text-ink outline-none transition focus:border-primary focus:shadow-[0_0_0_3px_rgba(0,117,222,0.15)] disabled:bg-canvas disabled:text-ink-faint";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -64,8 +33,6 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,39 +57,26 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     setSuccess("");
-
     const validationError = validate();
     if (validationError) {
       setError(validationError);
       return;
     }
-
     setLoading(true);
-
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
       });
-
       const json = await res.json();
-
       if (!res.ok || !json.success) {
         setError(json.error || "Registration failed.");
         setLoading(false);
         return;
       }
-
       setSuccess("Account created. Redirecting…");
-      // Hard navigation so JWT cookie applies and no prior session RSC cache is reused
-      const target =
-        typeof json.data?.redirectTo === "string" && json.data.redirectTo.startsWith("/dashboard/")
-          ? json.data.redirectTo
-          : "/dashboard/employee";
-      setTimeout(() => {
-        window.location.assign(target);
-      }, 600);
+      setTimeout(() => router.push(json.data.redirectTo), 1000);
     } catch {
       setError("Network error. Check your connection.");
       setLoading(false);
@@ -130,209 +84,121 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-left">
-        <div style={{ position: "relative", zIndex: 1, maxWidth: 440 }}>
-          <div
-            style={{
-              display: "inline-flex",
-              padding: "4px 10px",
-              borderRadius: "var(--radius-full)",
-              background: "rgba(255,255,255,0.12)",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              marginBottom: "var(--space-6)",
-            }}
-          >
+    <div className="grid min-h-screen overflow-hidden bg-canvas lg:grid-cols-2">
+      <div className="relative hidden flex-col justify-center bg-secondary px-12 py-16 text-white lg:flex">
+        <div className="max-w-md">
+          <span className="mb-6 inline-flex rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
             Create account
-          </div>
-          <h1
-            style={{
-              fontSize: 40,
-              fontWeight: 700,
-              lineHeight: 1.1,
-              letterSpacing: "-1px",
-              color: "#ffffff",
-              marginBottom: "var(--space-4)",
-            }}
-          >
+          </span>
+          <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-white">
             Join your organisation’s ESG workspace.
           </h1>
-          <p style={{ fontSize: 16, lineHeight: 1.5, color: "rgba(255,255,255,0.78)" }}>
-            New accounts start as Employee. An admin can elevate roles after
-            registration.
+          <p className="text-base leading-relaxed text-white/80">
+            New accounts start as Employee. An admin can elevate roles after registration.
           </p>
         </div>
       </div>
 
-      <div className="auth-right">
-        <div className="auth-form-container">
-          <div style={{ marginBottom: "var(--space-6)" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-primary)", marginBottom: 6 }}>
-              Register
-            </div>
-            <h1
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                letterSpacing: "-0.4px",
-                color: "var(--color-text-primary)",
-                marginBottom: 6,
-              }}
-            >
+      <div className="flex flex-col items-center justify-center overflow-y-auto px-4 py-10 sm:px-8">
+        <div className="w-full max-w-[420px] rounded-lg border border-hairline bg-surface p-8 shadow-soft">
+          <div className="mb-6">
+            <div className="mb-1.5 text-xs font-semibold text-primary">Register</div>
+            <h1 className="mb-1.5 text-[1.625rem] font-bold tracking-tight text-ink">
               Create your account
             </h1>
-            <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>
-              Register as an employee to get started.
-            </p>
+            <p className="text-sm text-ink-muted">Register as an employee to get started.</p>
           </div>
 
           {error && (
-            <div className="msg msg-error" style={{ marginBottom: "var(--space-4)" }}>
-              <span>{error}</span>
+            <div className="mb-4 rounded-md border border-[rgba(224,62,62,0.3)] bg-[rgba(224,62,62,0.06)] px-4 py-3 text-sm text-[#b42318]" role="alert">
+              {error}
             </div>
           )}
           {success && (
-            <div className="msg msg-success" style={{ marginBottom: "var(--space-4)" }}>
-              <span>{success}</span>
+            <div className="mb-4 rounded-md border border-[rgba(26,174,57,0.3)] bg-[rgba(26,174,57,0.06)] px-4 py-3 text-sm text-[#0f7a28]" role="status">
+              {success}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="signup-name">
-                  Full name
-                </label>
-                <input
-                  ref={nameRef}
-                  id="signup-name"
-                  className="form-input"
-                  type="text"
-                  autoComplete="name"
-                  placeholder="Jane Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="signup-email">
-                  Email
-                </label>
-                <input
-                  id="signup-email"
-                  className="form-input"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="jane@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="signup-password">
-                  Password
-                </label>
-                <div className="password-field">
-                  <input
-                    id="signup-password"
-                    className="form-input"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Min 8 chars, A–Z, a–z, 0–9"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword((v) => !v)}
-                    disabled={loading}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    title={showPassword ? "Hide password" : "Show password"}
-                  >
-                    <EyeIcon off={showPassword} />
-                  </button>
-                </div>
-                <PasswordStrength password={password} />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label" htmlFor="signup-confirm">
-                  Confirm password
-                </label>
-                <div className="password-field">
-                  <input
-                    id="signup-confirm"
-                    className={`form-input${confirm && confirm !== password ? " error" : ""}`}
-                    type={showConfirm ? "text" : "password"}
-                    autoComplete="new-password"
-                    placeholder="Re-enter password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowConfirm((v) => !v)}
-                    disabled={loading}
-                    aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
-                    title={showConfirm ? "Hide confirm password" : "Show confirm password"}
-                  >
-                    <EyeIcon off={showConfirm} />
-                  </button>
-                </div>
-                {confirm && confirm !== password && (
-                  <div className="helper-text error">Passwords do not match</div>
-                )}
-              </div>
-
-              <div
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--color-hairline)",
-                  background: "var(--color-bg)",
-                  fontSize: 13,
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                Role: <strong style={{ color: "var(--color-text-primary)" }}>Employee</strong>
-                <span style={{ color: "var(--color-text-dim)" }}> (default for new accounts)</span>
-              </div>
-
-              <button
-                id="signup-submit"
-                type="submit"
-                className={`btn btn-primary btn-lg btn-full${loading ? " btn-loading" : ""}`}
-                disabled={loading || !name || !email || !password || !confirm}
-              >
-                {loading ? "Creating account…" : "Create account"}
-              </button>
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="signup-name" className="text-xs font-semibold text-ink-muted">
+                Full name
+              </label>
+              <input
+                ref={nameRef}
+                id="signup-name"
+                className={inputClass}
+                type="text"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                disabled={loading}
+              />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="signup-email" className="text-xs font-semibold text-ink-muted">
+                Email
+              </label>
+              <input
+                id="signup-email"
+                className={inputClass}
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="signup-password" className="text-xs font-semibold text-ink-muted">
+                Password
+              </label>
+              <input
+                id="signup-password"
+                className={inputClass}
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+              <PasswordStrength password={password} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="signup-confirm" className="text-xs font-semibold text-ink-muted">
+                Confirm password
+              </label>
+              <input
+                id="signup-confirm"
+                className={`${inputClass}${confirm && confirm !== password ? " border-danger" : ""}`}
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+            <div className="rounded-md border border-hairline bg-canvas px-3 py-2.5 text-sm text-ink-muted">
+              Role: <strong className="text-ink">Employee</strong>
+              <span className="text-ink-faint"> (default)</span>
+            </div>
+            <button
+              type="submit"
+              disabled={loading || !name || !email || !password || !confirm}
+              className="w-full rounded-full bg-primary px-6 py-2.5 text-base font-medium text-white transition hover:bg-primary-active disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {loading ? "Creating account…" : "Create account"}
+            </button>
           </form>
 
-          <div
-            style={{
-              marginTop: "var(--space-6)",
-              fontSize: 14,
-              color: "var(--color-text-muted)",
-              textAlign: "center",
-            }}
-          >
+          <div className="mt-6 text-center text-sm text-ink-muted">
             Already have an account?{" "}
-            <Link href="/login" style={{ color: "var(--color-primary)", fontWeight: 600 }}>
+            <Link href="/login" className="font-semibold text-primary hover:text-primary-active">
               Sign in
             </Link>
           </div>

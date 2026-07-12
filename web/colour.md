@@ -1,6 +1,9 @@
 # EcoSphere Colour Configuration
 # Source of truth: DESIGN.md (Notion-inspired daylight design system)
-# Update hex values here AND the matching CSS variables in src/app/globals.css
+# Update hex values in THREE places for full theming:
+#   1. This file (documentation)
+#   2. `tailwind.config.ts` → theme.extend.colors (utility classes: bg-primary, text-ink, …)
+#   3. `src/app/globals.css` → :root CSS variables (legacy inline styles / component classes)
 
 ---
 

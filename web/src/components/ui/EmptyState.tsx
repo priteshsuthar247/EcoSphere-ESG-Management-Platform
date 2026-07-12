@@ -1,16 +1,15 @@
-// Empty list / empty table body message
+// Empty state panel — Tailwind
 
 type Props = {
-  message?: string;
-  bordered?: boolean;
+  message: string;
+  className?: string;
 };
 
-export default function EmptyState({
-  message = "No records found.",
-  bordered = true,
-}: Props) {
+export default function EmptyState({ message, className = "" }: Props) {
   return (
-    <div className={`empty-state${bordered ? " empty-state-bordered" : ""}`}>
+    <div
+      className={`rounded-lg border border-hairline bg-surface px-6 py-8 text-center text-sm text-ink-muted ${className}`}
+    >
       {message}
     </div>
   );

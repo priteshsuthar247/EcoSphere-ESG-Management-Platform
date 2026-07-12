@@ -10,9 +10,16 @@ import { successResponse, errorResponse } from '@/utils/apiResponse';
 import logger from '@/lib/logger';
 import type { ResultSetHeader } from 'mysql2';
 import { escapeHtml } from '@/lib/htmlEscape';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIp(request);
+    const rl = rateLimit(`forgot:${ip}`, 8, 60 * 60 * 1000); // 8 / hour
+    if (!rl.allowed) {
+      return errorResponse('Too many reset requests. Try again later.', 429, 'RATE_LIMITED');
+    }
+
     let body: unknown;
     try {
       body = await request.json();
