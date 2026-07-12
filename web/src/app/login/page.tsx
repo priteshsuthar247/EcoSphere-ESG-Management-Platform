@@ -49,21 +49,6 @@ export default function LoginPage() {
       {/* Dark indigo hero band */}
       <div className="auth-left">
         <div style={{ position: "relative", zIndex: 1, maxWidth: 440 }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "4px 10px",
-              borderRadius: "var(--radius-full)",
-              background: "rgba(255,255,255,0.12)",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              marginBottom: "var(--space-6)",
-            }}
-          >
-            ESG Management Platform
-          </div>
           <h1
             style={{
               fontSize: 40,
@@ -87,22 +72,6 @@ export default function LoginPage() {
             Carbon accounting, social impact, governance compliance, and
             engagement — in one calm workspace.
           </p>
-          <div style={{ display: "flex", gap: "var(--space-6)", flexWrap: "wrap" }}>
-            {[
-              { label: "Modules", value: "7" },
-              { label: "Roles", value: "4" },
-              { label: "Status", value: "Live" },
-            ].map((s) => (
-              <div key={s.label}>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 600 }}>
-                  {s.label}
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", letterSpacing: "-0.5px" }}>
-                  {s.value}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -213,25 +182,6 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: "var(--space-6)",
-              padding: "var(--space-3)",
-              borderRadius: "var(--radius-md)",
-              background: "var(--color-bg)",
-              border: "1px solid var(--color-hairline)",
-              fontSize: 12,
-              color: "var(--color-text-dim)",
-              lineHeight: 1.5,
-            }}
-          >
-            <div style={{ fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 4 }}>
-              Seed admin (after setup_db.sql)
-            </div>
-            <div>email: admin@ecosphere.com</div>
-            <div>pass: Admin@123</div>
           </div>
         </div>
       </div>
