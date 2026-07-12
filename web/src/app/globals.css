@@ -1,8 +1,14 @@
 /* =====================================================
-   EcoSphere — Global Styles
-   Design System: DESIGN.md (Notion-inspired daylight)
-   All colour values map to colour.md for easy theming.
+   EcoSphere — Global Styles (Tailwind CSS)
+   Design System: DESIGN.md / colour.md / tailwind.config.ts
+   Utility classes: bg-canvas, text-ink, bg-primary, etc.
+   Component classes (.btn, .card, …) live in @layer components
+   and are composed with Tailwind (@apply) for consistency.
    ===================================================== */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 

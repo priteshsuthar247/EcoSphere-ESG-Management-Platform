@@ -7,18 +7,26 @@ import { findUserByEmail, verifyPassword, updateLastLogin } from '@/services/use
 import { signToken, getDashboardPath } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/utils/apiResponse';
 import logger from '@/lib/logger';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 // Input validation
 function validateLoginInput(body: unknown): { email: string; password: string } | null {
   if (!body || typeof body !== 'object') return null;
   const { email, password } = body as Record<string, unknown>;
-  if (typeof email !== 'string' || !email.includes('@')) return null;
-  if (typeof password !== 'string' || password.length < 6) return null;
+  if (typeof email !== 'string' || !email.includes('@') || email.length > 255) return null;
+  if (typeof password !== 'string' || password.length < 6 || password.length > 128) return null;
   return { email: email.trim().toLowerCase(), password };
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIp(request);
+    const rl = rateLimit(`login:${ip}`, 20, 15 * 60 * 1000); // 20 / 15 min
+    if (!rl.allowed) {
+      logger.warn('Login rate limited', { ip });
+      return errorResponse('Too many login attempts. Try again later.', 429, 'RATE_LIMITED');
+    }
+
     let body: unknown;
     try {
       body = await request.json();

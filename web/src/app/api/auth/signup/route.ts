@@ -7,14 +7,15 @@ import { createUser } from '@/services/userService';
 import { signToken, getDashboardPath } from '@/lib/auth';
 import { successResponse, errorResponse } from '@/utils/apiResponse';
 import logger from '@/lib/logger';
+import { rateLimit, clientIp } from '@/lib/rateLimit';
 
 // Input validation
 function validateSignupInput(body: unknown): { name: string; email: string; password: string } | null {
   if (!body || typeof body !== 'object') return null;
   const { name, email, password } = body as Record<string, unknown>;
-  if (typeof name !== 'string' || name.trim().length < 2) return null;
-  if (typeof email !== 'string' || !email.includes('@')) return null;
-  if (typeof password !== 'string' || password.length < 8) return null;
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 150) return null;
+  if (typeof email !== 'string' || !email.includes('@') || email.length > 255) return null;
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) return null;
   // Password strength: at least 1 uppercase, 1 lowercase, 1 digit
   if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) return null;
   return { name: name.trim(), email: email.trim().toLowerCase(), password };
@@ -22,6 +23,12 @@ function validateSignupInput(body: unknown): { name: string; email: string; pass
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIp(request);
+    const rl = rateLimit(`signup:${ip}`, 10, 60 * 60 * 1000); // 10 / hour
+    if (!rl.allowed) {
+      return errorResponse('Too many signup attempts. Try again later.', 429, 'RATE_LIMITED');
+    }
+
     let body: unknown;
     try {
       body = await request.json();
