@@ -86,6 +86,20 @@ export interface CustomReportRow {
   metric_value: string;
 }
 
+/** Normalize MySQL DATE / DATETIME / Date / string into YYYY-MM-DD (or en-dash). */
+function formatReportDate(value: unknown): string {
+  if (value == null || value === '') return '–';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '–';
+    return value.toISOString().slice(0, 10);
+  }
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return s;
+}
+
 /**
  * Generates aggregated ESG Summary statistics.
  */
@@ -217,7 +231,7 @@ export async function buildCustomReport(filters: {
       rows.forEach((r) => {
         results.push({
           id: r.id,
-          date: r.date ? r.date.split('T')[0] : '–',
+          date: formatReportDate(r.date),
           module: 'Environmental',
           department_name: r.department_name,
           employee_name: r.employee_name,
@@ -273,7 +287,7 @@ export async function buildCustomReport(filters: {
       rows.forEach((r) => {
         results.push({
           id: r.id,
-          date: r.date ? r.date.split('T')[0] : '–',
+          date: formatReportDate(r.date),
           module: 'Social',
           department_name: r.department_name,
           employee_name: r.employee_name,
@@ -328,7 +342,7 @@ export async function buildCustomReport(filters: {
       rows.forEach((r) => {
         results.push({
           id: r.id,
-          date: r.date ? r.date.split('T')[0] : '–',
+          date: formatReportDate(r.date),
           module: 'Governance',
           department_name: r.department_name,
           employee_name: r.employee_name,
@@ -338,8 +352,12 @@ export async function buildCustomReport(filters: {
       });
     }
 
-    // Sort all records chronologically by date descending
-    results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Sort all records chronologically by date descending (invalid dates last)
+    results.sort((a, b) => {
+      const ta = a.date === '–' ? 0 : new Date(a.date).getTime();
+      const tb = b.date === '–' ? 0 : new Date(b.date).getTime();
+      return tb - ta;
+    });
     return results;
   } catch (err) {
     logger.error('buildCustomReport failed', { error: (err as Error).message });

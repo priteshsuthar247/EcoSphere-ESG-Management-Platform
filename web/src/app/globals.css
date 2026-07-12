@@ -225,6 +225,42 @@ code, pre {
   cursor: not-allowed;
 }
 
+/* Password show/hide eye toggle */
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.password-toggle-btn:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: rgba(0, 255, 65, 0.06);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 1px;
+  color: var(--color-primary);
+}
+
+.password-toggle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .helper-text {
   font-size: 11px;
   color: var(--color-text-dim);

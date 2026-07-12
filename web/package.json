@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:api": "node scripts/seed-and-test-api.mjs",
+    "test:api:verify": "node scripts/seed-and-test-api.mjs --verify-only"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

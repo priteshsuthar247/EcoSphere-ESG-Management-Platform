@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = verifyToken(token);
-    if (!payload || payload.role !== 'admin') {
-      return errorResponse('Access denied. Admin role required.', 403, 'FORBIDDEN');
+    if (!payload || (payload.role !== 'admin' && payload.role !== 'ceo')) {
+      return errorResponse('Access denied. Admin or CEO role required.', 403, 'FORBIDDEN');
     }
 
     let body: unknown;

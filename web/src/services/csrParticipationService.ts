@@ -273,6 +273,10 @@ export async function reviewParticipation(params: {
         points,
         userId: existing.user_id,
       });
+
+      // Auto-award badges when points balance crosses a tier threshold
+      const { awardEligibleBadges } = await import('@/services/badgeService');
+      await awardEligibleBadges(existing.user_id);
     } catch (err) {
       await conn.rollback();
       logger.error('approve participation failed', { error: (err as Error).message });

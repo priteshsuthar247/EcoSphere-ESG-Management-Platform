@@ -5,8 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify, type JWTPayload as JoseJWTPayload } from 'jose';
-
-type UserRole = 'admin' | 'ceo' | 'departmental_head' | 'employee';
+import { canAccessPath, getRoleHome, type UserRole } from '@/lib/accessControl';
 
 interface AppJWTPayload extends JoseJWTPayload {
   id: number;
@@ -27,26 +26,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/signup',
   '/api/auth/forgot-password',
-  '/api/auth/reset-password'
+  '/api/auth/reset-password',
 ];
-
-// Dashboard routes each role is allowed to access
-const ROLE_ALLOWED_PATHS: Record<UserRole, string[]> = {
-  admin:             ['/dashboard/admin', '/dashboard/ceo', '/dashboard/departmental-head', '/dashboard/employee', '/dashboard/settings', '/dashboard/environmental', '/dashboard/social', '/dashboard/governance', '/dashboard/gamification', '/dashboard/reports'],
-  ceo:               ['/dashboard/ceo', '/dashboard/departmental-head', '/dashboard/employee', '/dashboard/environmental', '/dashboard/social', '/dashboard/governance', '/dashboard/gamification', '/dashboard/reports'],
-  departmental_head: ['/dashboard/departmental-head', '/dashboard/employee', '/dashboard/environmental', '/dashboard/social', '/dashboard/governance', '/dashboard/gamification'],
-  employee:          ['/dashboard/employee', '/dashboard/social', '/dashboard/governance', '/dashboard/gamification'],
-};
-
-function getDashboardRedirect(role: UserRole): string {
-  const map: Record<UserRole, string> = {
-    admin:             '/dashboard/admin',
-    ceo:               '/dashboard/ceo',
-    departmental_head: '/dashboard/departmental-head',
-    employee:          '/dashboard/employee',
-  };
-  return map[role] ?? '/dashboard/employee';
-}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -60,6 +41,10 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to login if no token
   if (!token) {
+    // Allow unauthenticated API calls to return 401 from the route (except we block dashboard)
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.next();
+    }
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
@@ -72,6 +57,9 @@ export async function middleware(request: NextRequest) {
     payload = jwtPayload as AppJWTPayload;
   } catch {
     // Invalid/expired token — clear cookie and redirect to login
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.next();
+    }
     const loginUrl = new URL('/login', request.url);
     const response = NextResponse.redirect(loginUrl);
     response.cookies.delete('auth-token');
@@ -79,37 +67,42 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!payload) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.next();
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   const role = payload.role as UserRole;
+  const home = getRoleHome(role);
 
   // Root redirect → role-based dashboard
   if (pathname === '/') {
-    return NextResponse.redirect(new URL(getDashboardRedirect(role), request.url));
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   // /dashboard root → role-specific dashboard
   if (pathname === '/dashboard') {
-    return NextResponse.redirect(new URL(getDashboardRedirect(role), request.url));
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   // RBAC: Check if user is allowed to access the requested dashboard route
   if (pathname.startsWith('/dashboard/')) {
-    const allowedPaths = ROLE_ALLOWED_PATHS[role] ?? [];
-    const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
-
-    if (!isAllowed) {
+    if (!canAccessPath(role, pathname)) {
       // Redirect to their own dashboard instead of showing 403
-      return NextResponse.redirect(new URL(getDashboardRedirect(role), request.url));
+      return NextResponse.redirect(new URL(home, request.url));
     }
   }
 
   // Inject user info into request headers for server components
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id',   String(payload.id));
+  requestHeaders.set('x-user-id', String(payload.id));
   requestHeaders.set('x-user-role', role);
   requestHeaders.set('x-user-name', payload.name ?? '');
+  requestHeaders.set(
+    'x-user-department-id',
+    payload.department_id != null ? String(payload.department_id) : '',
+  );
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
