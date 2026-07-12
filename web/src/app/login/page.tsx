@@ -49,9 +49,6 @@ export default function LoginPage() {
       {/* Night band hero */}
       <div className="relative hidden flex-col justify-center overflow-hidden bg-secondary px-12 py-16 text-white lg:flex">
         <div className="relative z-10 max-w-md">
-          <span className="mb-6 inline-flex rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
-            ESG Management Platform
-          </span>
           <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-white">
             Measure, manage, and improve ESG performance.
           </h1>
@@ -59,18 +56,6 @@ export default function LoginPage() {
             Carbon accounting, social impact, governance compliance, and engagement — in one calm
             workspace.
           </p>
-          <div className="flex flex-wrap gap-8">
-            {[
-              { label: "Modules", value: "7" },
-              { label: "Roles", value: "4" },
-              { label: "Status", value: "Live" },
-            ].map((s) => (
-              <div key={s.label}>
-                <div className="text-xs font-semibold text-white/55">{s.label}</div>
-                <div className="text-[1.75rem] font-bold tracking-tight text-white">{s.value}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -150,12 +135,6 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-          </div>
-
-          <div className="mt-6 rounded-md border border-hairline bg-canvas p-3 text-xs leading-relaxed text-ink-faint">
-            <div className="mb-1 font-semibold text-ink-muted">Seed admin (after setup_db.sql)</div>
-            <div>email: admin@ecosphere.com</div>
-            <div>pass: Admin@123</div>
           </div>
         </div>
       </div>
