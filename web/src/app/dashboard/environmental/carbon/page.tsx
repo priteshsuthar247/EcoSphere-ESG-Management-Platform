@@ -189,14 +189,14 @@ export default function CarbonTransactionsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// TOTAL EMISSIONS</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TOTAL EMISSIONS"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--color-primary)" }}>
             {summary ? Number(summary.total_emissions).toFixed(2) : "–"}
             <span style={{ fontSize: "12px", color: "var(--color-text-dim)", marginLeft: "6px" }}>kgCO₂e</span>
           </div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// TRANSACTIONS</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TRANSACTIONS"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>
             {summary?.transaction_count ?? "–"}
           </div>
@@ -205,7 +205,7 @@ export default function CarbonTransactionsPage() {
           const row = summary?.by_scope.find((x) => x.scope === s);
           return (
             <div key={s} className="stat-card">
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// SCOPE {s}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// SCOPE "}{s}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "var(--color-secondary)" }}>
                 {row ? Number(row.emissions).toFixed(1) : "0.0"}
               </div>
@@ -241,7 +241,7 @@ export default function CarbonTransactionsPage() {
             </div>
           ) : items.length === 0 ? (
             <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No carbon transactions logged yet.
+              {"// No carbon transactions logged yet."}
             </div>
           ) : (
             <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
@@ -332,7 +332,7 @@ export default function CarbonTransactionsPage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="ct-factor">EMISSION FACTOR</label>
                   <select id="ct-factor" value={form.emission_factor_id} onChange={(e) => setForm({ ...form, emission_factor_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// manual emissions (no factor)</option>
+                    <option value="">{"// manual emissions (no factor)"}</option>
                     {(meta?.emission_factors ?? []).map((f) => (
                       <option key={f.id} value={f.id}>
                         {f.name} · S{f.scope ?? "?"} · {Number(f.value_kgco2e_per_unit).toFixed(4)}/{f.unit}
@@ -348,7 +348,7 @@ export default function CarbonTransactionsPage() {
                   </div>
                   {previewEmissions !== null && (
                     <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-tertiary)", marginTop: "4px" }}>
-                      // calc: {previewEmissions.toFixed(4)} kgCO₂e
+                      {"// calc: "}{previewEmissions.toFixed(4)}{" kgCO₂e"}
                     </div>
                   )}
                 </div>
@@ -364,7 +364,7 @@ export default function CarbonTransactionsPage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="ct-scope">SCOPE OVERRIDE</label>
                   <select id="ct-scope" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// inherit from factor</option>
+                    <option value="">{"// inherit from factor"}</option>
                     <option value="1">Scope 1</option>
                     <option value="2">Scope 2</option>
                     <option value="3">Scope 3</option>
@@ -373,7 +373,7 @@ export default function CarbonTransactionsPage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="ct-dept">DEPARTMENT</label>
                   <select id="ct-dept" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// none</option>
+                    <option value="">{"// none"}</option>
                     {(meta?.departments ?? []).map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
@@ -382,7 +382,7 @@ export default function CarbonTransactionsPage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="ct-prod">PRODUCT (optional)</label>
                   <select id="ct-prod" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} style={selectStyle} disabled={submitting}>
-                    <option value="">// none</option>
+                    <option value="">{"// none"}</option>
                     {(meta?.products ?? []).map((p) => (
                       <option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ""}</option>
                     ))}

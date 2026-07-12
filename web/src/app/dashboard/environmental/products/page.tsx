@@ -231,15 +231,15 @@ export default function ProductEsgProfilesPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-4)", marginBottom: "var(--space-6)" }}>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// PRODUCTS</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// PRODUCTS"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-primary)" }}>{stats?.total ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// ACTIVE</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// ACTIVE"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "28px", fontWeight: 700, color: "var(--color-tertiary)" }}>{stats?.active ?? "–"}</div>
         </div>
         <div className="stat-card">
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>// TOTAL FOOTPRINT</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>{"// TOTAL FOOTPRINT"}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 700, color: "var(--color-secondary)" }}>
             {stats ? `${Number(stats.total_footprint).toFixed(2)}` : "–"}
             <span style={{ fontSize: "12px", color: "var(--color-text-dim)", marginLeft: "6px" }}>kgCO₂e</span>
@@ -274,7 +274,7 @@ export default function ProductEsgProfilesPage() {
             </div>
           ) : items.length === 0 ? (
             <div style={{ padding: "var(--space-8)", border: "1px solid var(--color-border-subtle)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)", textAlign: "center" }}>
-              // No products registered. Create a product ESG profile to continue.
+              {"// No products registered. Create a product ESG profile to continue."}
             </div>
           ) : (
             <div style={{ overflowX: "auto", border: "1px solid var(--color-border-subtle)" }}>
@@ -387,7 +387,7 @@ export default function ProductEsgProfilesPage() {
                 <div style={{ padding: "var(--space-4)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>Loading stages...</div>
               ) : lifecycle.length === 0 ? (
                 <div style={{ padding: "var(--space-4)", fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-muted)" }}>
-                  // No lifecycle stages recorded yet.
+                  {"// No lifecycle stages recorded yet."}
                 </div>
               ) : (
                 <div style={{ marginBottom: "var(--space-4)", maxHeight: "240px", overflowY: "auto" }}>

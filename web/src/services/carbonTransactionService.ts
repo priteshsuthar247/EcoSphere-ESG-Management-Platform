@@ -69,7 +69,8 @@ export async function listCarbonTransactions(options?: {
 }): Promise<CarbonTransaction[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any[] = [];
 
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('ct.department_id = ?');
@@ -118,7 +119,7 @@ export async function createCarbonTransaction(
   try {
     let emissions = input.calculated_emissions_kgco2e ?? null;
     let scope = input.scope ?? null;
-    let emissionFactorId = input.emission_factor_id ?? null;
+    const emissionFactorId = input.emission_factor_id ?? null;
 
     if (emissionFactorId) {
       const factor = await getEmissionFactorById(emissionFactorId);
@@ -234,7 +235,8 @@ export async function getCarbonSummary(options?: {
 }> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any[] = [];
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('department_id = ?');
       params.push(options.departmentId);

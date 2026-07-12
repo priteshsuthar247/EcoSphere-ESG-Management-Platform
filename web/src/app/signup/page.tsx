@@ -170,7 +170,7 @@ export default function SignupPage() {
             }}
           >
             <div style={{ color: "var(--color-text-dim)", marginBottom: "var(--space-2)" }}>
-              // AVAILABLE ROLES
+              {"// AVAILABLE ROLES"}
             </div>
             {[
               { role: "ADMIN", access: "Full system access", color: "var(--color-error)" },
@@ -361,7 +361,7 @@ export default function SignupPage() {
                   (*) EMPLOYEE
                 </div>
                 <div className="helper-text">
-                  // All registrations default to employee role
+                  {"// All registrations default to employee role"}
                 </div>
               </div>
 

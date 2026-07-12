@@ -224,7 +224,7 @@ export default function DepartmentsManagementPage() {
                   {departments.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ padding: "var(--space-4)", textAlign: "center", color: "var(--color-text-dim)" }}>
-                        // NO DEPARTMENTS DECLARED IN DATABASE SYSTEM
+                        {"// NO DEPARTMENTS DECLARED IN DATABASE SYSTEM"}
                       </td>
                     </tr>
                   ) : (
@@ -347,7 +347,7 @@ export default function DepartmentsManagementPage() {
                         }}
                         disabled={submitting}
                       >
-                        <option value="null">// NO MANAGER ASSIGNED</option>
+                        <option value="null">{"// NO MANAGER ASSIGNED"}</option>
                         {users.map((u) => (
                           <option key={u.id} value={u.id}>
                             @ {u.name} ({u.email})
@@ -377,7 +377,7 @@ export default function DepartmentsManagementPage() {
                         }}
                         disabled={submitting}
                       >
-                        <option value="null">// NO PARENT HIERARCHY</option>
+                        <option value="null">{"// NO PARENT HIERARCHY"}</option>
                         {departments
                           .filter((d) => d.id !== editingDept?.id) // Prevent self-referencing hierarchy
                           .map((d) => (

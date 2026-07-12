@@ -85,7 +85,8 @@ export async function listEnvironmentalGoals(options?: {
 }): Promise<EnvironmentalGoal[]> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any[] = [];
 
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('g.department_id = ?');
@@ -268,7 +269,8 @@ export async function getGoalStats(options?: {
 }> {
   try {
     const clauses: string[] = [];
-    const params: unknown[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any[] = [];
     if (options?.departmentId !== undefined && options.departmentId !== null) {
       clauses.push('department_id = ?');
       params.push(options.departmentId);

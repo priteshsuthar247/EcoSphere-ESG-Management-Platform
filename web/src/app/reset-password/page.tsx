@@ -154,7 +154,7 @@ function ResetPasswordFormContent() {
           <span>THE SECURITY VERIFICATION TOKEN IS INVALID OR HAS EXPIRED.</span>
         </div>
         <div style={{ border: "1px dashed var(--color-border-medium)", padding: "var(--space-4)", marginBottom: "var(--space-6)", fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--color-text-dim)", lineHeight: "20px" }}>
-          // DIAGNOSTICS:<br />
+          {"// DIAGNOSTICS:"}<br />
           - Verification tokens expire exactly 60 minutes after dispatch.<br />
           - Tokens can only be consumed once.
         </div>
