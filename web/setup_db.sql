@@ -417,6 +417,17 @@ CREATE TABLE IF NOT EXISTS employee_trainings (
     CONSTRAINT fk_et_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ===================== PASSWORD RESETS =====================
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT NOT NULL,
+    token       VARCHAR(255) NOT NULL UNIQUE,
+    expires_at  DATETIME NOT NULL,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_pr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- ===================== INDEXES =====================
 
 CREATE INDEX idx_users_email ON users(email);

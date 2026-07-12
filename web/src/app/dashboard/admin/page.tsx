@@ -77,6 +77,7 @@ export default async function AdminDashboard() {
         <div className="card-header">QUICK ACTIONS</div>
         <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
           {[
+            { label: "Manage Users",       href: "/dashboard/settings/users" },
             { label: "Log Carbon Data",    href: "/dashboard/environmental/carbon" },
             { label: "Start Challenge",    href: "/dashboard/gamification/challenges" },
             { label: "View Reports",       href: "/dashboard/reports" },
